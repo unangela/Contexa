@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DOM Notes</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <div class="sidepanel">
+    <header class="header">
+      <strong>DOM Contexa</strong>
+      <span>Design. Explain. Deliver.</span>
+    </header>
+
+    <section class="panel mode-panel">
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <strong>标注模式</strong>
+          <span>开启后可点击网页元素添加标注</span>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="annotationToggle">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <strong>预览模式</strong>
+          <span>可正常操作网页，浏览标注信息</span>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="previewToggle">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div id="editorEmpty" class="empty">开启标注模式后，点击页面中的元素添加备注。已有备注可点击数字标记查看或编辑。</div>
+      <div id="editor" hidden>
+        <p class="hint">当前绑定 DOM</p>
+        <div class="selector" id="selectorText"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="stats">
+        <div class="stat"><b id="totalCount">0</b><span>总备注</span></div>
+        <div class="stat"><b id="visibleCount">0</b><span>当前可见</span></div>
+      </div>
+      <div class="row">
+        <button class="btn primary" id="exportJson">导出</button>
+        <label class="btn" for="importJson">导入</label>
+        <input id="importJson" type="file" accept="application/json,.json">
+      </div>
+    </section>
+
+    <section class="panel file-note">
+      <h2>本地文件支持</h2>
+      <p>若要在本地 HTML 文件（file://）上使用标注功能，请前往 <a href="chrome://extensions" target="_blank">chrome://extensions</a>，找到 DOM Notes 扩展，点击"详细信息"，然后启用"允许访问文件网址"选项。</p>
+    </section>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>

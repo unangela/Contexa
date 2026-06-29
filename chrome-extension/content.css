@@ -1,0 +1,198 @@
+:host {
+  --ink: #191816;
+  --muted: #6b665f;
+  --line: #ddd4c7;
+  --paper: #f6f0e6;
+  --panel: #fffdf8;
+  --coal: #25211d;
+  --accent: #2d6cdf;
+  --warn: #d74f68;
+  --shadow: 0 16px 44px rgba(37, 33, 29, 0.14);
+}
+
+.dom-notes-root {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  pointer-events: none;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: auto;
+  background: transparent;
+}
+
+.target-box {
+  position: absolute;
+  z-index: 2;
+  border: 2px solid var(--accent);
+  background: rgba(45, 108, 223, .10);
+  border-radius: 5px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .12s ease;
+}
+
+.target-box.show {
+  opacity: 1;
+}
+
+.pin {
+  position: absolute;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: #fff;
+  background: var(--warn);
+  border: 2px solid #fff;
+  border-radius: 999px;
+  box-shadow: 0 8px 18px rgba(37, 33, 29, .24);
+  font-size: 13px;
+  font-weight: 800;
+  pointer-events: auto;
+  padding: 0;
+  cursor: pointer;
+}
+
+.pin:hover {
+  transform: scale(1.1);
+}
+
+.pin.selected {
+  background: var(--coal);
+  outline: 3px solid rgba(37,33,29,.22);
+  outline-offset: 2px;
+}
+
+.note-pop {
+  position: absolute;
+  z-index: 4;
+  width: 260px;
+  padding: 12px;
+  background: #ffe27a;
+  border: 1px solid rgba(0,0,0,.18);
+  border-radius: 7px;
+  box-shadow: 0 14px 30px rgba(37, 33, 29, .22);
+  pointer-events: auto;
+}
+
+.note-pop[data-editable="true"] {
+  cursor: pointer;
+}
+
+.note-pop::before {
+  content: "";
+  position: absolute;
+  left: 18px;
+  top: -8px;
+  width: 48px;
+  height: 15px;
+  background: rgba(255,255,255,.55);
+  border: 1px solid rgba(255,255,255,.35);
+  transform: rotate(-3deg);
+}
+
+.note-pop h3 {
+  margin: 0 0 7px;
+  font-size: 14px;
+}
+
+.note-pop p {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.note-pop.editing {
+  width: 292px;
+  padding-top: 14px;
+}
+
+.note-input,
+.note-textarea {
+  width: 100%;
+  border: 1px solid rgba(37,33,29,.24);
+  outline: 0;
+  color: var(--coal);
+  background: rgba(255,255,255,.48);
+  border-radius: 6px;
+  font-family: inherit;
+}
+
+.note-input {
+  height: 34px;
+  padding: 7px 9px;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.note-textarea {
+  min-height: 116px;
+  margin-top: 8px;
+  padding: 9px;
+  resize: vertical;
+  line-height: 1.45;
+  font-size: 13px;
+}
+
+.note-actions {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: #fff;
+  background: var(--coal);
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,.1);
+  font-size: 16px;
+  line-height: 1;
+  text-align: center;
+  cursor: pointer;
+}
+
+.icon-btn svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: auto;
+  stroke: currentColor;
+}
+
+.icon-btn.danger {
+  background: var(--warn);
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  z-index: 50;
+  padding: 10px 14px;
+  color: #fff;
+  background: rgba(37,33,29,.94);
+  border-radius: 8px;
+  transform: translate(-50%, 16px);
+  opacity: 0;
+  transition: opacity .2s ease, transform .2s ease;
+  pointer-events: none;
+  font-size: 13px;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
