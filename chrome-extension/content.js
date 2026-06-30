@@ -317,7 +317,7 @@ function ensureOverlay() {
 
 .note-actions {
   display: flex;
-  justify-content: flex-start;
+  justify-content: space-between;
   align-items: center;
   gap: 6px;
   margin-top: 7px;
@@ -347,6 +347,10 @@ function ensureOverlay() {
 
 .icon-btn.danger {
   background: var(--warn);
+}
+
+.icon-btn.save-note {
+  background: #1aa64b;
 }
 
 .toast {
@@ -862,13 +866,6 @@ function renderNotes() {
         <input class="note-input" placeholder="标题">
         <textarea class="note-textarea" placeholder="输入备注内容..."></textarea>
         <div class="note-actions">
-          <button class="icon-btn save-note" title="保存">
-            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-              <polyline points="17 21 17 13 7 13 7 21"></polyline>
-              <polyline points="7 3 7 8 15 8"></polyline>
-            </svg>
-          </button>
           <button class="icon-btn danger delete-note" title="删除">
             <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M3 6h18"></path>
@@ -876,6 +873,11 @@ function renderNotes() {
               <path d="M6 6l1 15h10l1-15"></path>
               <path d="M10 11v6"></path>
               <path d="M14 11v6"></path>
+            </svg>
+          </button>
+          <button class="icon-btn save-note" title="保存">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
           </button>
         </div>
@@ -889,6 +891,36 @@ function renderNotes() {
       setTimeout(() => autoResizeTextarea(textarea), 0);
 
       let suppressFocusSave = false;
+
+      // Cmd/Ctrl + Enter to save
+      const onShortcutSave = (event) => {
+        if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+          event.preventDefault();
+          if (!isExtensionContextValid()) return;
+          suppressFocusSave = true;
+          state.selectedId = null;
+          state.editingId = null;
+          state._popoverWasOpen = false;
+          saveNoteFromPopover(note.id, pop, {});
+        }
+      };
+      pop.querySelector(".note-input").addEventListener("keydown", onShortcutSave);
+      textarea.addEventListener("keydown", onShortcutSave);
+
+      // Cmd/Ctrl + Backspace to delete (mirrors delete button exactly)
+      const onShortcutDelete = (event) => {
+        if ((event.metaKey || event.ctrlKey) && event.key === "Backspace") {
+          event.preventDefault();
+          state._popoverWasOpen = false;
+          // Defer so confirm() runs outside the keydown call stack,
+          // matching the delete button's click behavior precisely.
+          setTimeout(() => {
+            pop.querySelector(".delete-note")?.click();
+          }, 0);
+        }
+      };
+      pop.querySelector(".note-input").addEventListener("keydown", onShortcutDelete);
+      textarea.addEventListener("keydown", onShortcutDelete);
 
       // On focus loss: save and close the popover entirely
       pop.addEventListener("focusout", (e) => {
