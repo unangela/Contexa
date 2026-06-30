@@ -305,10 +305,12 @@ function ensureOverlay() {
 }
 
 .note-textarea {
-  min-height: 80px;
+  min-height: 60px;
+  max-height: 220px;
   margin-top: 6px;
   padding: 7px 8px;
-  resize: vertical;
+  resize: none;
+  overflow-y: auto;
   line-height: 1.4;
   font-size: 12px;
 }
@@ -880,7 +882,11 @@ function renderNotes() {
       `;
 
       pop.querySelector(".note-input").value = note.title || "";
-      pop.querySelector(".note-textarea").value = note.text || "";
+      const textarea = pop.querySelector(".note-textarea");
+      textarea.value = note.text || "";
+      textarea.addEventListener("input", () => autoResizeTextarea(textarea));
+      // Defer so the textarea is laid out before measuring scrollHeight
+      setTimeout(() => autoResizeTextarea(textarea), 0);
 
       let suppressFocusSave = false;
 
@@ -1231,6 +1237,11 @@ function cssEscape(value) {
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
+}
+
+function autoResizeTextarea(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
 }
 
 function makeId() {
