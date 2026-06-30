@@ -791,7 +791,12 @@ function renderNotes() {
   let visible = 0;
   const visibleNotes = [];
 
-  for (const note of state.notes) {
+  for (let i = 0; i < state.notes.length; i++) {
+    const note = state.notes[i];
+    // Stable numbering based on array position so hiding/showing
+    // elements doesn't reshuffle the remaining labels.
+    const number = i + 1;
+
     let element = null;
     try {
       element = document.querySelector(note.selector);
@@ -807,7 +812,7 @@ function renderNotes() {
     visible += 1;
     visibleNotes.push({
       id: note.id,
-      number: visible,
+      number: number,
       selector: note.selector,
       title: note.title || '',
       description: note.description || ''
@@ -818,7 +823,7 @@ function renderNotes() {
     const isSelected = note.id === state.selectedId;
     pin.classList.toggle("selected", isSelected);
     pin.setAttribute("aria-pressed", String(isSelected));
-    pin.textContent = visible;
+    pin.textContent = number;
     pin.title = isSelected ? "隐藏备注" : (note.title || "显示备注");
 
     pin.style.left = `${clamp(rect.right - 12, 4, window.innerWidth - 32)}px`;
@@ -1049,7 +1054,37 @@ function labelFromElement(element) {
 
 function isElementVisible(element) {
   const style = window.getComputedStyle(element);
-  return style.display !== "none" && style.visibility !== "hidden" && style.opacity !== "0";
+  if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") {
+    return false;
+  }
+
+  const rect = element.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return false;
+
+  // Outside the viewport
+  if (rect.bottom <= 0 || rect.top >= window.innerHeight ||
+      rect.right <= 0 || rect.left >= window.innerWidth) {
+    return false;
+  }
+
+  // Clipped by an overflow ancestor
+  let parent = element.parentElement;
+  while (parent && parent !== document.documentElement) {
+    const ps = window.getComputedStyle(parent);
+    const oy = ps.overflowY;
+    const ox = ps.overflowX;
+    const clipsY = oy === "hidden" || oy === "auto" || oy === "scroll" || oy === "clip";
+    const clipsX = ox === "hidden" || ox === "auto" || ox === "scroll" || ox === "clip";
+
+    if (clipsY || clipsX) {
+      const pr = parent.getBoundingClientRect();
+      if (clipsY && (rect.top >= pr.bottom || rect.bottom <= pr.top)) return false;
+      if (clipsX && (rect.left >= pr.right || rect.right <= pr.left)) return false;
+    }
+    parent = parent.parentElement;
+  }
+
+  return true;
 }
 
 // ---- MutationObserver ----
