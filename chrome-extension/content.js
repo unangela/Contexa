@@ -139,8 +139,12 @@ function init() {
     }
   });
 
-  // Default to preview mode on page load
-  setMode('preview');
+  // Only activate if there are existing notes for this page
+  loadNotes(() => {
+    if (state.notes.length > 0) {
+      setMode('preview');
+    }
+  });
 }
 
 // ---- One-time Shadow DOM setup ----
