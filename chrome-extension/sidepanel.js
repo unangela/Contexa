@@ -4,10 +4,12 @@ const els = {
   editor: document.getElementById("editor"),
   editorEmpty: document.getElementById("editorEmpty"),
   selectorText: document.getElementById("selectorText"),
-  totalCount: document.getElementById("totalCount"),
-  visibleCount: document.getElementById("visibleCount"),
+  noteList: document.getElementById("noteList"),
+  emptyState: document.getElementById("emptyState"),
+  actionsRow: document.getElementById("actionsRow"),
   exportJson: document.getElementById("exportJson"),
-  importJson: document.getElementById("importJson")
+  importJson: document.getElementById("importJson"),
+  clearAll: document.getElementById("clearAll")
 };
 
 let currentState = {
@@ -25,6 +27,7 @@ function init() {
   els.previewToggle.addEventListener("change", onPreviewToggle);
   els.exportJson.addEventListener("click", exportJson);
   els.importJson.addEventListener("change", importJson);
+  els.clearAll.addEventListener("click", clearAll);
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'update') {
@@ -42,8 +45,6 @@ function init() {
   });
 
   requestState();
-
-  setInterval(requestState, 2000);
 }
 
 function requestState() {
@@ -73,16 +74,52 @@ function updateState(state) {
   els.annotationToggle.checked = state.mode === 'annotation';
   els.previewToggle.checked = state.mode === 'preview';
 
-  els.totalCount.textContent = state.total || currentState.notes.length;
-  els.visibleCount.textContent = state.visible || 0;
+  // Render all notes list
+  renderNoteList(state.notes || []);
+}
 
-  const note = state.notes?.find(item => item.id === state.selectedId);
-  els.editor.hidden = !note;
-  els.editorEmpty.hidden = Boolean(note);
+function renderNoteList(notes) {
+  els.noteList.innerHTML = '';
 
-  if (note) {
-    els.selectorText.textContent = note.selector;
-  }
+  const hasNotes = notes.length > 0;
+  els.emptyState.hidden = hasNotes;
+  els.actionsRow.hidden = !hasNotes;
+  els.noteList.hidden = !hasNotes;
+
+  if (!hasNotes) return;
+
+  notes.forEach((note, index) => {
+    const item = document.createElement('div');
+    item.className = 'note-item';
+    item.dataset.id = note.id;
+
+    const badge = document.createElement('span');
+    badge.className = 'note-badge';
+    badge.textContent = index + 1;
+
+    const text = document.createElement('div');
+    text.className = 'note-text';
+    text.textContent = note.title || '(未命名备注)';
+
+    item.appendChild(badge);
+    item.appendChild(text);
+
+    item.addEventListener('click', () => {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs[0]) return;
+        chrome.tabs.sendMessage(tabs[0].id, {
+          type: 'selectNote',
+          payload: { id: note.id }
+        }, () => {
+          if (chrome.runtime.lastError) {
+            toast("当前页面不支持操作");
+          }
+        });
+      });
+    });
+
+    els.noteList.appendChild(item);
+  });
 }
 
 // ---- Mode switching with mutual exclusion ----

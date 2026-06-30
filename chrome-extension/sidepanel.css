@@ -11,6 +11,8 @@
 
 * { box-sizing: border-box; }
 
+[hidden] { display: none !important; }
+
 html, body {
   height: 100%;
   margin: 0;
@@ -168,9 +170,32 @@ html, body {
 .row {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
   margin-top: 12px;
+}
+
+.row-spacer {
+  flex: 1;
+}
+
+.btn-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffaf0;
+  color: var(--warn);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+
+.btn-icon:hover {
+  background: #fde8ec;
+  color: #b53047;
 }
 
 .stats {
@@ -195,6 +220,75 @@ html, body {
 .stat span {
   color: var(--muted);
   font-size: 12px;
+}
+
+/* ---- Visible notes list ---- */
+.note-list {
+  margin: 10px 0;
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.note-list-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 24px 0;
+}
+
+.empty-state p {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.note-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #fffaf0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+
+.note-item:hover {
+  background: #fff5e0;
+  border-color: var(--coal);
+}
+
+.note-badge {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  background: var(--coal);
+  color: #fff;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.note-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--ink);
 }
 
 .btn {

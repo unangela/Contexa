@@ -45,16 +45,24 @@
     </section>
 
 
-    <section class="panel">
-      <div class="stats">
-        <div class="stat"><b id="totalCount">0</b><span>总备注</span></div>
-        <div class="stat"><b id="visibleCount">0</b><span>当前可见</span></div>
+    <section class="panel" id="notesSection">
+      <div id="noteList" class="note-list"></div>
+      <div id="emptyState" class="empty-state">
+        <p>暂无备注</p>
+        <label class="btn primary" for="importJson">导入 JSON</label>
       </div>
-      <div class="row">
+      <div class="row" id="actionsRow">
+        <button class="btn-icon" id="clearAll" title="清空全部备注">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
+        <div class="row-spacer"></div>
         <button class="btn primary" id="exportJson">导出</button>
         <label class="btn" for="importJson">导入</label>
-        <input id="importJson" type="file" accept="application/json,.json">
       </div>
+      <input id="importJson" type="file" accept="application/json,.json">
     </section>
 
     <section class="panel file-note">

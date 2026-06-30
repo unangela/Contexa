@@ -82,6 +82,18 @@ function init() {
           deleteNote(message.payload.id);
           sendResponse({ success: true });
           break;
+        case 'selectNote':
+          // Toggle the note popover open/closed from the sidepanel
+          if (state.selectedId === message.payload.id) {
+            state.selectedId = null;
+            state.editingId = null;
+          } else {
+            state.selectedId = message.payload.id;
+            state.editingId = message.payload.id;
+          }
+          renderNotes();
+          sendResponse({ success: true });
+          break;
         case 'clearAll':
           if (confirm("确定清空全部备注吗？")) {
             state.notes = [];
@@ -105,12 +117,15 @@ function init() {
           break;
         case 'importJson':
           if (message.payload && Array.isArray(message.payload.notes)) {
-            state.notes = message.payload.notes;
+            // Append imported notes instead of overwriting existing ones
+            const existingIds = new Set(state.notes.map(n => n.id));
+            const newNotes = message.payload.notes.filter(n => !existingIds.has(n.id));
+            state.notes = state.notes.concat(newNotes);
             state.selectedId = null;
             state.editingId = null;
             saveNotes();
             renderNotes();
-            toast("备注已导入");
+            toast(`已导入 ${newNotes.length} 条备注`);
             notifySidepanel();
           }
           sendResponse({ success: true });
@@ -724,6 +739,7 @@ function renderNotes() {
 
   els.noteLayer.innerHTML = "";
   let visible = 0;
+  const visibleNotes = [];
 
   for (const note of state.notes) {
     let element = null;
@@ -739,6 +755,13 @@ function renderNotes() {
     if (rect.width <= 0 || rect.height <= 0) continue;
 
     visible += 1;
+    visibleNotes.push({
+      id: note.id,
+      number: visible,
+      selector: note.selector,
+      title: note.title || '',
+      description: note.description || ''
+    });
 
     const pin = document.createElement("button");
     pin.className = "pin";
@@ -912,7 +935,7 @@ function renderNotes() {
     }
   }
 
-  notifySidepanel({ total: state.notes.length, visible });
+  notifySidepanel({ total: state.notes.length, visible, visibleNotes });
 }
 
 function scheduleRender() {
