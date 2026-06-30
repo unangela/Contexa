@@ -514,6 +514,25 @@ function ensureOverlay() {
     if (!isExtensionContextValid()) return;
     chrome.runtime.sendMessage({ type: 'togglePanel' });
   });
+
+  // Global shortcut: press Ctrl/Cmd + E to toggle annotation ↔ preview
+  window.addEventListener('keydown', (event) => {
+    if (!isExtensionContextValid()) return;
+    if (state.mode === null) return;
+
+    // Skip when typing in any field (composedPath sees through Shadow DOM)
+    const realTarget = event.composedPath()[0];
+    if (realTarget && (
+      realTarget.tagName === 'INPUT' ||
+      realTarget.tagName === 'TEXTAREA' ||
+      realTarget.isContentEditable
+    )) return;
+
+    if ((event.ctrlKey || event.metaKey) && (event.key === 'e' || event.key === 'E')) {
+      event.preventDefault();
+      setMode(state.mode === 'annotation' ? 'preview' : 'annotation');
+    }
+  });
 }
 
 // ---- Single source of truth for presentation ----
