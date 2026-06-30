@@ -95,7 +95,7 @@ function init() {
           sendResponse({ success: true });
           break;
         case 'clearAll':
-          if (confirm("确定清空全部备注吗？")) {
+          if (confirm("确定清空当前页面的全部备注吗？")) {
             state.notes = [];
             state.selectedId = null;
             state.editingId = null;
@@ -104,6 +104,17 @@ function init() {
             toast("已清空");
             notifySidepanel();
           }
+          sendResponse({ success: true });
+          break;
+        case 'reloadNotes':
+          // Storage was modified externally (import/clear-all from sidepanel);
+          // reload from storage and re-render.
+          loadNotes(() => {
+            state.selectedId = null;
+            state.editingId = null;
+            renderNotes();
+            notifySidepanel();
+          });
           sendResponse({ success: true });
           break;
         case 'exportJson':
@@ -146,11 +157,13 @@ function init() {
     }
   });
 
-  // Only activate if there are existing notes for this page
-  loadNotes(() => {
-    if (state.notes.length > 0) {
-      setMode('preview');
-    }
+  // Migrate legacy localStorage data first, then load and activate
+  migrateLegacyStorage(() => {
+    loadNotes(() => {
+      if (state.notes.length > 0) {
+        setMode('preview');
+      }
+    });
   });
 }
 
@@ -1169,6 +1182,54 @@ function getStorageKey() {
   return 'domNotes_' + url.hostname + url.pathname;
 }
 
+// One-time migration: move legacy localStorage data (used by file:// pages
+// in older versions) into chrome.storage.local so all data lives in one place.
+function migrateLegacyStorage(callback) {
+  try {
+    const legacyData = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('domNotes_')) {
+        const value = localStorage.getItem(key);
+        try {
+          const parsed = JSON.parse(value);
+          if (parsed && Array.isArray(parsed.notes)) {
+            legacyData[key] = parsed;
+          }
+        } catch (e) {
+          // skip invalid entries
+        }
+      }
+    }
+
+    const keys = Object.keys(legacyData);
+    if (keys.length === 0) {
+      if (callback) callback();
+      return;
+    }
+
+    // Merge into chrome.storage.local, then clean up localStorage
+    chrome.storage.local.get(keys, (existing) => {
+      const merged = { ...legacyData };
+      for (const key of keys) {
+        if (existing[key] && Array.isArray(existing[key].notes)) {
+          const existingIds = new Set(existing[key].notes.map(n => n.id));
+          merged[key].notes = existing[key].notes.concat(
+            legacyData[key].notes.filter(n => !existingIds.has(n.id))
+          );
+        }
+      }
+      chrome.storage.local.set(merged, () => {
+        // Clean up localStorage entries
+        keys.forEach(k => localStorage.removeItem(k));
+        if (callback) callback();
+      });
+    });
+  } catch (e) {
+    if (callback) callback();
+  }
+}
+
 function loadNotes(callback) {
   if (!isExtensionContextValid()) {
     if (callback) callback();
@@ -1176,22 +1237,6 @@ function loadNotes(callback) {
   }
 
   const key = getStorageKey();
-
-  if (window.location.protocol === 'file:') {
-    try {
-      const data = localStorage.getItem(key);
-      if (data) {
-        const parsed = JSON.parse(data);
-        if (parsed && Array.isArray(parsed.notes)) {
-          state.notes = parsed.notes;
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to load notes from localStorage:', e);
-    }
-    if (callback) callback();
-    return;
-  }
 
   try {
     chrome.storage.local.get([key], (result) => {
@@ -1207,6 +1252,8 @@ function loadNotes(callback) {
       const data = result[key];
       if (data && Array.isArray(data.notes)) {
         state.notes = data.notes;
+      } else {
+        state.notes = [];
       }
       if (callback) callback();
     });
@@ -1220,18 +1267,6 @@ function saveNotes() {
   if (!isExtensionContextValid()) return;
 
   const key = getStorageKey();
-
-  if (window.location.protocol === 'file:') {
-    try {
-      localStorage.setItem(key, JSON.stringify({
-        url: window.location.href,
-        notes: state.notes
-      }));
-    } catch (e) {
-      console.warn('Failed to save notes to localStorage:', e);
-    }
-    return;
-  }
 
   try {
     chrome.storage.local.set({

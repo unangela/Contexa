@@ -52,14 +52,26 @@
         <label class="btn primary" for="importJson">导入 JSON</label>
       </div>
       <div class="row" id="actionsRow">
-        <button class="btn-icon" id="clearAll" title="清空全部备注">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="3 6 5 6 21 6"></polyline>
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-          </svg>
-        </button>
+        <div class="dd">
+          <button class="btn-icon" id="clearAll" title="清空备注">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+          <div class="dd-menu" id="clearMenu">
+            <div class="dd-item" data-scope="page">清空当前页面</div>
+            <div class="dd-item danger" data-scope="all">清空全部数据</div>
+          </div>
+        </div>
         <div class="row-spacer"></div>
-        <button class="btn primary" id="exportJson">导出</button>
+        <div class="dd">
+          <button class="btn primary" id="exportJson">导出</button>
+          <div class="dd-menu dd-right" id="exportMenu">
+            <div class="dd-item" data-scope="page">导出当前页面</div>
+            <div class="dd-item" data-scope="all">导出全部数据</div>
+          </div>
+        </div>
         <label class="btn" for="importJson">导入</label>
       </div>
       <input id="importJson" type="file" accept="application/json,.json">
