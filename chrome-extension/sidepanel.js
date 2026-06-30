@@ -7,8 +7,7 @@ const els = {
   totalCount: document.getElementById("totalCount"),
   visibleCount: document.getElementById("visibleCount"),
   exportJson: document.getElementById("exportJson"),
-  importJson: document.getElementById("importJson"),
-  clearAll: document.getElementById("clearAll")
+  importJson: document.getElementById("importJson")
 };
 
 let currentState = {
@@ -26,7 +25,6 @@ function init() {
   els.previewToggle.addEventListener("change", onPreviewToggle);
   els.exportJson.addEventListener("click", exportJson);
   els.importJson.addEventListener("change", importJson);
-  els.clearAll.addEventListener("click", clearAll);
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'update') {

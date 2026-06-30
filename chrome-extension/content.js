@@ -457,14 +457,11 @@ function applyMode() {
   removeCursorStyle();
 
   if (mode === null) {
-    // hide note layer but keep toolbar visible
-    els.noteLayer.style.display = 'none';
-    els.captureLayer.style.display = 'none';
-    els.toolbar.style.display = '';
+    // Hide everything including toolbar — only re-open via sidepanel
+    els.root.style.display = 'none';
     detachAnnotationListeners();
     state.selectedId = null;
     state.editingId = null;
-    updateToolbarActive();
     return;
   }
 
@@ -557,6 +554,7 @@ function setMode(mode) {
 // ---- Annotation-mode DOM selection listeners ----
 function attachAnnotationListeners() {
   els.captureLayer.addEventListener('mousemove', onCaptureMove);
+  els.captureLayer.addEventListener('mouseleave', onCaptureLeave);
   els.captureLayer.addEventListener('click', onCaptureClick);
   window.addEventListener('resize', scheduleRender);
 }
@@ -564,8 +562,13 @@ function attachAnnotationListeners() {
 function detachAnnotationListeners() {
   if (!els.captureLayer) return;
   els.captureLayer.removeEventListener('mousemove', onCaptureMove);
+  els.captureLayer.removeEventListener('mouseleave', onCaptureLeave);
   els.captureLayer.removeEventListener('click', onCaptureClick);
   window.removeEventListener('resize', scheduleRender);
+  if (els.targetBox) els.targetBox.classList.remove("show");
+}
+
+function onCaptureLeave() {
   if (els.targetBox) els.targetBox.classList.remove("show");
 }
 
