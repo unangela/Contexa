@@ -1,7 +1,9 @@
 const state = {
   mode: null, // 'annotation' | 'preview' | null
+  readOnly: false, // only meaningful in preview mode
   selectedId: null,
   editingId: null,
+  openIds: [], // read-only mode: which notes are expanded
   notes: []
 };
 
@@ -70,9 +72,22 @@ function init() {
           setMode(message.payload.mode);
           sendResponse({ success: true });
           break;
+        case 'setReadOnly':
+          state.readOnly = !!message.payload.readOnly;
+          if (state.readOnly) {
+            state.selectedId = null;
+            state.editingId = null;
+          } else {
+            state.openIds = [];
+          }
+          renderNotes();
+          notifySidepanel();
+          sendResponse({ success: true });
+          break;
         case 'getState':
           sendResponse({
             mode: state.mode,
+            readOnly: state.readOnly,
             selectedId: state.selectedId,
             notes: state.notes,
             total: state.notes.length
@@ -84,7 +99,11 @@ function init() {
           break;
         case 'selectNote':
           // Toggle the note popover open/closed from the sidepanel
-          if (state.selectedId === message.payload.id) {
+          if (state.readOnly) {
+            const idx = state.openIds.indexOf(message.payload.id);
+            if (idx >= 0) state.openIds.splice(idx, 1);
+            else state.openIds.push(message.payload.id);
+          } else if (state.selectedId === message.payload.id) {
             state.selectedId = null;
             state.editingId = null;
           } else {
@@ -296,6 +315,10 @@ function ensureOverlay() {
 .note-pop.editing {
   width: 240px;
   padding: 10px;
+}
+
+.note-pop.readonly {
+  cursor: default;
 }
 
 .note-input,
@@ -565,6 +588,8 @@ function applyMode() {
     detachAnnotationListeners();
     state.selectedId = null;
     state.editingId = null;
+    state.readOnly = false;
+    state.openIds = [];
     return;
   }
 
@@ -573,7 +598,8 @@ function applyMode() {
   els.toolbar.style.display = '';
 
   if (mode === 'annotation') {
-    // capture layer blocks the page and shows crosshair
+    state.readOnly = false;
+    state.openIds = [];
     els.captureLayer.style.display = 'block';
     els.captureLayer.style.pointerEvents = 'auto';
     addCursorStyle();
@@ -858,11 +884,11 @@ function renderNotes() {
 
     const pin = document.createElement("button");
     pin.className = "pin";
-    const isSelected = note.id === state.selectedId;
-    pin.classList.toggle("selected", isSelected);
-    pin.setAttribute("aria-pressed", String(isSelected));
+    const isOpen = state.readOnly ? state.openIds.includes(note.id) : note.id === state.selectedId;
+    pin.classList.toggle("selected", isOpen);
+    pin.setAttribute("aria-pressed", String(isOpen));
     pin.textContent = number;
-    pin.title = isSelected ? "隐藏备注" : (note.title || "显示备注");
+    pin.title = isOpen ? "隐藏备注" : (note.title || "显示备注");
 
     pin.style.left = `${clamp(rect.right - 12, 4, window.innerWidth - 32)}px`;
     pin.style.top = `${clamp(rect.top - 12, 4, window.innerHeight - 32)}px`;
@@ -873,16 +899,22 @@ function renderNotes() {
       event.preventDefault();
       event.stopPropagation();
 
-      const wasSelected = state.selectedId === note.id;
-
-      if (state.editingId) saveActiveEditingNote();
-
-      if (wasSelected) {
-        state.selectedId = null;
-        state.editingId = null;
+      if (state.readOnly) {
+        const idx = state.openIds.indexOf(note.id);
+        if (idx >= 0) state.openIds.splice(idx, 1);
+        else state.openIds.push(note.id);
       } else {
-        state.selectedId = note.id;
-        state.editingId = note.id;
+        const wasSelected = state.selectedId === note.id;
+
+        if (state.editingId) saveActiveEditingNote();
+
+        if (wasSelected) {
+          state.selectedId = null;
+          state.editingId = null;
+        } else {
+          state.selectedId = note.id;
+          state.editingId = note.id;
+        }
       }
 
       renderNotes();
@@ -891,29 +923,62 @@ function renderNotes() {
 
     els.noteLayer.appendChild(pin);
 
-    if (isSelected) {
-      const pop = document.createElement("article");
-      pop.className = "note-pop editing";
-      pop.innerHTML = `
-        <input class="note-input" placeholder="标题">
-        <textarea class="note-textarea" placeholder="输入备注内容..."></textarea>
-        <div class="note-actions">
-          <button class="icon-btn danger delete-note" title="删除">
-            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 6h18"></path>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-              <path d="M6 6l1 15h10l1-15"></path>
-              <path d="M10 11v6"></path>
-              <path d="M14 11v6"></path>
-            </svg>
-          </button>
-          <button class="icon-btn save-note" title="保存">
-            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-          </button>
-        </div>
-      `;
+    if (isOpen) {
+      if (state.readOnly) {
+        const pop = document.createElement("article");
+        pop.className = "note-pop readonly";
+        pop.innerHTML = `
+          <h3>${note.title || "未命名备注"}</h3>
+          <p>${note.text || ""}</p>
+        `;
+
+        els.noteLayer.appendChild(pop);
+
+        const popW = pop.offsetWidth || 220;
+        const popH = pop.offsetHeight || 80;
+        const pinRect = pin.getBoundingClientRect();
+        const gap = 8;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+
+        let left = pinRect.left - 8;
+        let top = pinRect.bottom + gap;
+
+        if (top + popH > vh - 4) {
+          top = pinRect.top - popH - gap;
+        }
+        if (top < 4) top = 4;
+
+        if (left + popW > vw - 4) {
+          left = vw - popW - 4;
+        }
+        if (left < 4) left = 4;
+
+        pop.style.left = `${left}px`;
+        pop.style.top = `${top}px`;
+      } else {
+        const pop = document.createElement("article");
+        pop.className = "note-pop editing";
+        pop.innerHTML = `
+          <input class="note-input" placeholder="标题">
+          <textarea class="note-textarea" placeholder="输入备注内容..."></textarea>
+          <div class="note-actions">
+            <button class="icon-btn danger delete-note" title="删除">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18"></path>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                <path d="M6 6l1 15h10l1-15"></path>
+                <path d="M10 11v6"></path>
+                <path d="M14 11v6"></path>
+              </svg>
+            </button>
+            <button class="icon-btn save-note" title="保存">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </button>
+          </div>
+        `;
 
       pop.querySelector(".note-input").value = note.title || "";
       const textarea = pop.querySelector(".note-textarea");
@@ -1024,6 +1089,7 @@ function renderNotes() {
 
       pop.style.left = `${left}px`;
       pop.style.top = `${top}px`;
+      }
     }
   }
 
@@ -1296,6 +1362,7 @@ function notifySidepanel(data = {}) {
       type: 'update',
       payload: {
         mode: state.mode,
+        readOnly: state.readOnly,
         selectedId: state.selectedId,
         notes: state.notes,
         total: state.notes.length,

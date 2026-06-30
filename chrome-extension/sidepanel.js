@@ -1,6 +1,7 @@
 const els = {
   annotationToggle: document.getElementById("annotationToggle"),
   previewToggle: document.getElementById("previewToggle"),
+  readOnlyToggle: document.getElementById("readOnlyToggle"),
   editor: document.getElementById("editor"),
   editorEmpty: document.getElementById("editorEmpty"),
   selectorText: document.getElementById("selectorText"),
@@ -16,6 +17,7 @@ const els = {
 
 let currentState = {
   mode: null,
+  readOnly: false,
   selectedId: null,
   notes: [],
   total: 0,
@@ -27,6 +29,7 @@ let activeTabId = null;
 function init() {
   els.annotationToggle.addEventListener("change", onAnnotationToggle);
   els.previewToggle.addEventListener("change", onPreviewToggle);
+  els.readOnlyToggle.addEventListener("change", onReadOnlyToggle);
   els.importJson.addEventListener("change", importJson);
 
   // Dropdown toggles
@@ -105,6 +108,10 @@ function updateState(state) {
   els.annotationToggle.checked = state.mode === 'annotation';
   els.previewToggle.checked = state.mode === 'preview';
 
+  // read-only is only available in preview mode
+  els.readOnlyToggle.disabled = state.mode !== 'preview';
+  els.readOnlyToggle.checked = !!state.readOnly;
+
   // Render all notes list
   renderNoteList(state.notes || []);
 }
@@ -162,6 +169,19 @@ function renderNoteList(notes) {
 function onAnnotationToggle(event) {
   const enabled = event.target.checked;
   if (enabled) {
+    // Turn off read-only before switching to annotation
+    if (els.readOnlyToggle.checked) {
+      els.readOnlyToggle.checked = false;
+      // Notify content script to actually turn off read-only mode
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0]) {
+          chrome.tabs.sendMessage(tabs[0].id, {
+            type: 'setReadOnly',
+            payload: { readOnly: false }
+          });
+        }
+      });
+    }
     setMode('annotation');
   } else {
     // Closing annotation auto-opens preview
@@ -177,6 +197,22 @@ function onPreviewToggle(event) {
     // Manually closing preview → both off
     setMode(null);
   }
+}
+
+function onReadOnlyToggle(event) {
+  const enabled = event.target.checked;
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (!tabs[0]) return;
+    chrome.tabs.sendMessage(tabs[0].id, {
+      type: 'setReadOnly',
+      payload: { readOnly: enabled }
+    }, () => {
+      if (chrome.runtime.lastError) {
+        toast("当前页面不支持操作");
+        els.readOnlyToggle.checked = !enabled;
+      }
+    });
+  });
 }
 
 function setMode(mode) {
@@ -198,6 +234,12 @@ function setMode(mode) {
       currentState.mode = mode;
       els.annotationToggle.checked = mode === 'annotation';
       els.previewToggle.checked = mode === 'preview';
+
+      // Read-only is only available in preview mode
+      els.readOnlyToggle.disabled = mode !== 'preview';
+      if (mode !== 'preview') {
+        els.readOnlyToggle.checked = false;
+      }
 
       if (mode === 'annotation') {
         toast("已开启标注模式");

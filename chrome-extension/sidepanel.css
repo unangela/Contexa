@@ -80,6 +80,19 @@ html, body {
   margin-top: 12px;
 }
 
+.toggle-row.sub-toggle {
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+
+.toggle-row.sub-toggle .toggle-info strong {
+  font-size: 13px;
+}
+
+.toggle-row.sub-toggle .toggle-info span {
+  font-size: 11px;
+}
+
 .toggle-info strong {
   display: block;
   font-size: 15px;
@@ -136,6 +149,11 @@ html, body {
 
 .toggle-switch input:checked + .toggle-slider:before {
   transform: translateX(24px);
+}
+
+.toggle-switch input:disabled + .toggle-slider {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .hint {
