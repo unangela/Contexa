@@ -124,7 +124,14 @@ function init() {
             state.selectedId = null;
             state.editingId = null;
             saveNotes();
-            renderNotes();
+
+            // Auto-activate preview mode if plugin was inactive
+            if (state.mode === null && state.notes.length > 0) {
+              setMode('preview');
+            } else {
+              renderNotes();
+            }
+
             toast(`已导入 ${newNotes.length} 条备注`);
             notifySidepanel();
           }
@@ -364,8 +371,8 @@ function ensureOverlay() {
 /* ---- Floating toolbar ---- */
 .toolbar {
   position: fixed;
-  top: 16px;
-  right: 16px;
+  top: 20px;
+  right: 25px;
   z-index: 60;
   display: flex;
   gap: 4px;
@@ -409,6 +416,32 @@ function ensureOverlay() {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+
+.panel-toggle {
+  position: absolute;
+  right: -16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color .15s;
+}
+
+.panel-toggle:hover {
+  color: var(--coal);
+}
+
+.panel-toggle svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
     </style>
     <div class="capture-layer" id="captureLayer"></div>
     <div class="target-box" id="targetBox"></div>
@@ -427,6 +460,13 @@ function ensureOverlay() {
           <circle cx="12" cy="12" r="3"></circle>
         </svg>
       </button>
+      <button class="panel-toggle" id="btnPanel" title="展开/收起侧边栏">
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="5" r="1.5"></circle>
+          <circle cx="12" cy="12" r="1.5"></circle>
+          <circle cx="12" cy="19" r="1.5"></circle>
+        </svg>
+      </button>
     </div>
   `;
 
@@ -441,7 +481,8 @@ function ensureOverlay() {
     toast: shadow.getElementById('toast'),
     toolbar: shadow.getElementById('toolbar'),
     btnAnnotation: shadow.getElementById('btnAnnotation'),
-    btnPreview: shadow.getElementById('btnPreview')
+    btnPreview: shadow.getElementById('btnPreview'),
+    btnPanel: shadow.getElementById('btnPanel')
   };
 
   // Toolbar button handlers
@@ -461,6 +502,11 @@ function ensureOverlay() {
     } else {
       setMode('preview');
     }
+  });
+
+  els.btnPanel.addEventListener('click', () => {
+    if (!isExtensionContextValid()) return;
+    chrome.runtime.sendMessage({ type: 'togglePanel' });
   });
 }
 
