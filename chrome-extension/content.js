@@ -244,28 +244,28 @@ function ensureOverlay() {
   z-index: 3;
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  color: #fff;
+  width: 21px;
+  height: 21px;
+  color: #ffffffff;
   background: var(--warn);
-  border: 2px solid #fff;
+  border: 1px solid #fff;
   border-radius: 999px;
-  box-shadow: 0 8px 18px rgba(37, 33, 29, .24);
-  font-size: 13px;
-  font-weight: 800;
+  box-shadow: 0 3px 3px rgba(37, 33, 29, .24);
+  font-size: 10px;
+  font-weight: 200;
   pointer-events: auto;
   padding: 0;
   cursor: pointer;
 }
 
 .pin:hover {
-  transform: scale(1.1);
+  transform: scale(1.05);
 }
 
 .pin.selected {
-  background: var(--coal);
-  outline: 3px solid rgba(37,33,29,.22);
-  outline-offset: 2px;
+  background: var(--muted);
+  outline: 1px solid rgba(37,33,29,.22);
+  outline-offset: 1px;
 }
 
 .note-pop {
