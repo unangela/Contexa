@@ -356,18 +356,18 @@ function ensureOverlay() {
   justify-content: space-between;
   align-items: center;
   gap: 6px;
-  margin-top: 7px;
+  margin-top: 6px;
 }
 
 .icon-btn {
-  width: 26px;
-  height: 26px;
+  width: 20px;
+  height: 20px;
   padding: 0;
   color: #fff;
   background: var(--coal);
   border-radius: 999px;
   border: 1px solid rgba(0,0,0,.1);
-  font-size: 14px;
+  font-size: 12px;
   line-height: 1;
   text-align: center;
   cursor: pointer;
@@ -375,8 +375,8 @@ function ensureOverlay() {
 
 .icon-btn svg {
   display: block;
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   margin: auto;
   stroke: currentColor;
 }
