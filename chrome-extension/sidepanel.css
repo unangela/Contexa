@@ -62,97 +62,47 @@ html, body {
   letter-spacing: 0;
 }
 
-.mode-panel {
-  background: #fffaf0;
-  border-radius: 10px;
-  padding: 14px;
-  border-bottom: 0;
-}
-
-.toggle-row {
+.icon-bar {
   display: flex;
+  background: var(--bar-bg);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.icon-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-}
-
-.toggle-row + .toggle-row {
-  margin-top: 12px;
-}
-
-.toggle-row.sub-toggle {
-  padding-top: 8px;
-  border-top: 1px dashed var(--line);
-}
-
-.toggle-row.sub-toggle .toggle-info strong {
-  font-size: 13px;
-}
-
-.toggle-row.sub-toggle .toggle-info span {
-  font-size: 11px;
-}
-
-.toggle-info strong {
-  display: block;
-  font-size: 15px;
-  margin-bottom: 3px;
-}
-
-.toggle-info span {
-  display: block;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.toggle-switch {
-  position: relative;
-  display: inline-block;
-  width: 52px;
-  height: 28px;
-}
-
-.toggle-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.toggle-slider {
-  position: absolute;
+  gap: 3px;
+  padding: 8px 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-secondary);
   cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #d7cdbc;
-  transition: .3s;
-  border-radius: 28px;
+  transition: background .2s, color .2s;
+  font: inherit;
 }
 
-.toggle-slider:before {
-  position: absolute;
-  content: "";
-  height: 22px;
-  width: 22px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  transition: .3s;
-  border-radius: 50%;
-  box-shadow: 0 2px 6px rgba(0,0,0,.15);
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
-.toggle-switch input:checked + .toggle-slider {
-  background-color: var(--coal);
+.icon-btn span {
+  font-size: 10px;
+  font-weight: 500;
 }
 
-.toggle-switch input:checked + .toggle-slider:before {
-  transform: translateX(24px);
+.icon-btn.active {
+  background: var(--active-bg);
+  color: var(--active-fg);
 }
 
-.toggle-switch input:disabled + .toggle-slider {
-  opacity: 0.4;
-  cursor: not-allowed;
+.icon-btn:not(.active):hover {
+  background: var(--divider);
 }
 
 .hint {
