@@ -31,6 +31,13 @@ function init() {
   });
   els.importJson.addEventListener("change", importJson);
 
+  document.addEventListener("keydown", (e) => {
+    if (e.ctrlKey && e.key === "p") {
+      e.preventDefault();
+      onModeSelect("readonly");
+    }
+  });
+
   // Dropdown toggles
   els.exportJson.addEventListener("click", (e) => {
     e.stopPropagation();
