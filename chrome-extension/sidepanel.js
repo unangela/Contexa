@@ -32,7 +32,7 @@ function init() {
   els.importJson.addEventListener("change", importJson);
 
   document.addEventListener("keydown", (e) => {
-    if (e.ctrlKey && e.key === "p") {
+    if (e.ctrlKey && e.shiftKey && e.key === "p") {
       e.preventDefault();
       onModeSelect("readonly");
     }
