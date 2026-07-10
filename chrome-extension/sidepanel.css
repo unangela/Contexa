@@ -107,16 +107,16 @@ html, body {
 
 .hint {
   margin: 0;
-  color: var(--muted);
+  color: var(--fg-secondary);
   font-size: 13px;
   line-height: 1.55;
 }
 
 .selector {
   padding: 9px 10px;
-  color: #3d3832;
-  background: #efe8dc;
-  border: 1px solid #d9cfbf;
+  color: var(--fg);
+  background: var(--bar-bg);
+  border: 1px solid var(--divider);
   border-radius: 7px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
@@ -126,9 +126,9 @@ html, body {
 
 .empty {
   padding: 16px;
-  color: var(--muted);
-  background: #f0e9dd;
-  border: 1px dashed #cbbfac;
+  color: var(--fg-secondary);
+  background: var(--bar-bg);
+  border: 1px dashed var(--divider);
   border-radius: 8px;
   font-size: 13px;
   line-height: 1.55;
@@ -152,17 +152,17 @@ html, body {
   height: 36px;
   display: grid;
   place-items: center;
-  border: 1px solid var(--line);
+  border: 1px solid var(--divider);
   border-radius: 8px;
-  background: #fffaf0;
-  color: var(--warn);
+  background: transparent;
+  color: var(--danger);
   cursor: pointer;
   transition: background .15s, color .15s;
 }
 
 .btn-icon:hover {
-  background: #fde8ec;
-  color: #b53047;
+  background: rgba(224,80,80,0.1);
+  color: var(--danger);
 }
 
 .stats {
@@ -213,7 +213,7 @@ html, body {
 
 .empty-state p {
   margin: 0 0 12px;
-  color: var(--muted);
+  color: var(--fg-secondary);
   font-size: 13px;
 }
 
@@ -222,16 +222,16 @@ html, body {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  background: #fffaf0;
-  border: 1px solid var(--line);
+  background: transparent;
+  border: 1px solid var(--divider);
   border-radius: 8px;
   cursor: pointer;
   transition: background .15s, border-color .15s;
 }
 
 .note-item:hover {
-  background: #fff5e0;
-  border-color: var(--coal);
+  background: var(--bar-bg);
+  border-color: var(--fg);
 }
 
 .note-badge {
@@ -240,7 +240,7 @@ html, body {
   height: 22px;
   display: grid;
   place-items: center;
-  background: var(--coal);
+  background: var(--active-bg);
   color: #fff;
   border-radius: 50%;
   font-size: 12px;
@@ -255,15 +255,15 @@ html, body {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 13px;
-  color: var(--ink);
+  color: var(--fg);
 }
 
 .btn {
   height: 36px;
   padding: 0 13px;
-  color: var(--coal);
-  background: #fffaf0;
-  border: 1px solid #d7cdbc;
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--divider);
   border-radius: 7px;
   text-align: center;
   align-items: center;
@@ -279,9 +279,9 @@ html, body {
 }
 
 .btn.primary {
-  color: #fff;
-  background: var(--coal);
-  border-color: var(--coal);
+  color: var(--active-fg);
+  background: var(--active-bg);
+  border-color: var(--active-bg);
 }
 
 input[type="file"] {
@@ -300,10 +300,10 @@ input[type="file"] {
   z-index: 20;
   min-width: 150px;
   padding: 4px;
-  background: var(--panel);
-  border: 1px solid var(--line);
+  background: #ffffff;
+  border: 1px solid var(--divider);
   border-radius: 8px;
-  box-shadow: 0 6px 20px rgba(37, 33, 29, .16);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .12);
   display: none;
 }
 
@@ -320,21 +320,21 @@ input[type="file"] {
   padding: 8px 12px;
   border-radius: 6px;
   font-size: 13px;
-  color: var(--ink);
+  color: var(--fg);
   cursor: pointer;
   transition: background .12s;
 }
 
 .dd-item:hover {
-  background: #f0e9dd;
+  background: var(--bar-bg);
 }
 
 .dd-item.danger {
-  color: var(--warn);
+  color: var(--danger);
 }
 
 .dd-item.danger:hover {
-  background: #fde8ec;
+  background: rgba(224,80,80,0.1);
 }
 
 .guide {
@@ -367,7 +367,7 @@ input[type="file"] {
   z-index: 50;
   padding: 10px 14px;
   color: #fff;
-  background: rgba(37,33,29,.94);
+  background: rgba(26,26,26,.94);
   border-radius: 8px;
   transform: translate(-50%, 16px);
   opacity: 0;
