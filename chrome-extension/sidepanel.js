@@ -1,7 +1,5 @@
 const els = {
-  annotationToggle: document.getElementById("annotationToggle"),
-  previewToggle: document.getElementById("previewToggle"),
-  readOnlyToggle: document.getElementById("readOnlyToggle"),
+  iconBtns: Array.from(document.querySelectorAll('.icon-btn')),
   editor: document.getElementById("editor"),
   editorEmpty: document.getElementById("editorEmpty"),
   selectorText: document.getElementById("selectorText"),
@@ -27,9 +25,9 @@ let currentState = {
 let activeTabId = null;
 
 function init() {
-  els.annotationToggle.addEventListener("change", onAnnotationToggle);
-  els.previewToggle.addEventListener("change", onPreviewToggle);
-  els.readOnlyToggle.addEventListener("change", onReadOnlyToggle);
+  els.iconBtns.forEach(btn => {
+    btn.addEventListener("click", () => onModeSelect(btn.dataset.mode));
+  });
   els.importJson.addEventListener("change", importJson);
 
   // Dropdown toggles
@@ -90,8 +88,9 @@ function requestState() {
     chrome.tabs.sendMessage(tabs[0].id, { type: 'getState' }, (response) => {
       if (chrome.runtime.lastError) {
         // Tab doesn't support the extension — reset UI
-        els.annotationToggle.checked = false;
-        els.previewToggle.checked = false;
+        currentState.mode = null;
+        currentState.readOnly = false;
+        updateActiveButton(null, false);
         return;
       }
       if (response) {
@@ -104,13 +103,8 @@ function requestState() {
 function updateState(state) {
   currentState = { ...currentState, ...state };
 
-  // sync toggles from the single mode value
-  els.annotationToggle.checked = state.mode === 'annotation';
-  els.previewToggle.checked = state.mode === 'preview';
-
-  // read-only is only available in preview mode
-  els.readOnlyToggle.disabled = state.mode !== 'preview';
-  els.readOnlyToggle.checked = !!state.readOnly;
+  // sync icon buttons from mode + readOnly state
+  updateActiveButton(state.mode, !!state.readOnly);
 
   // Render all notes list
   renderNoteList(state.notes || []);
@@ -160,47 +154,39 @@ function renderNoteList(notes) {
   });
 }
 
-// ---- Mode switching with mutual exclusion ----
-// Rules:
-// - Turning ON annotation → automatically turns OFF preview
-// - Turning OFF annotation → automatically turns ON preview
-// - Turning ON preview → automatically turns OFF annotation
-// - Turning OFF preview manually → both OFF (no auto annotation)
-function onAnnotationToggle(event) {
-  const enabled = event.target.checked;
-  if (enabled) {
-    // Turn off read-only before switching to annotation
-    if (els.readOnlyToggle.checked) {
-      els.readOnlyToggle.checked = false;
-      // Notify content script to actually turn off read-only mode
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0]) {
-          chrome.tabs.sendMessage(tabs[0].id, {
-            type: 'setReadOnly',
-            payload: { readOnly: false }
-          });
-        }
+// ---- Mode switching (icon toolbar, three-way mutual exclusion) ----
+function onModeSelect(mode) {
+  const activeMode = currentState.mode === 'preview' && currentState.readOnly
+    ? 'readonly'
+    : currentState.mode;
+
+  // 点击已激活按钮 → no-op
+  if (mode === activeMode) return;
+
+  // "readonly" 在底层映射为 preview + readOnly
+  if (mode === 'readonly') {
+    setMode('preview', () => {
+      setReadOnly(true, null, () => {
+        toast("已开启只读模式");
+      });
+    });
+  } else {
+    // 从只读切出时，先关 readOnly 再切模式，保证状态一致
+    if (currentState.readOnly) {
+      setReadOnly(false, null, () => {
+        setMode(mode, () => {
+          toast(mode === 'annotation' ? "已开启标注模式" : "已开启预览模式");
+        });
+      });
+    } else {
+      setMode(mode, () => {
+        toast(mode === 'annotation' ? "已开启标注模式" : "已开启预览模式");
       });
     }
-    setMode('annotation');
-  } else {
-    // Closing annotation auto-opens preview
-    setMode('preview');
   }
 }
 
-function onPreviewToggle(event) {
-  const enabled = event.target.checked;
-  if (enabled) {
-    setMode('preview');
-  } else {
-    // Manually closing preview → both off
-    setMode(null);
-  }
-}
-
-function onReadOnlyToggle(event) {
-  const enabled = event.target.checked;
+function setReadOnly(enabled, onError, onSuccess) {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (!tabs[0]) return;
     chrome.tabs.sendMessage(tabs[0].id, {
@@ -209,13 +195,17 @@ function onReadOnlyToggle(event) {
     }, () => {
       if (chrome.runtime.lastError) {
         toast("当前页面不支持操作");
-        els.readOnlyToggle.checked = !enabled;
+        if (onError) onError();
+        return;
       }
+      currentState.readOnly = enabled;
+      updateActiveButton(currentState.mode, enabled);
+      if (onSuccess) onSuccess();
     });
   });
 }
 
-function setMode(mode) {
+function setMode(mode, callback) {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (!tabs[0]) return;
 
@@ -225,30 +215,30 @@ function setMode(mode) {
     }, () => {
       if (chrome.runtime.lastError) {
         toast("当前页面不支持标注");
-        // revert both toggles
-        els.annotationToggle.checked = false;
-        els.previewToggle.checked = false;
+        currentState.mode = null;
+        updateActiveButton(null, false);
         return;
       }
 
       currentState.mode = mode;
-      els.annotationToggle.checked = mode === 'annotation';
-      els.previewToggle.checked = mode === 'preview';
+      updateActiveButton(mode, currentState.readOnly);
 
-      // Read-only is only available in preview mode
-      els.readOnlyToggle.disabled = mode !== 'preview';
-      if (mode !== 'preview') {
-        els.readOnlyToggle.checked = false;
-      }
-
-      if (mode === 'annotation') {
-        toast("已开启标注模式");
-      } else if (mode === 'preview') {
-        toast("已开启预览模式");
-      } else {
-        toast("已关闭");
-      }
+      if (callback) callback();
     });
+  });
+}
+
+function updateActiveButton(mode, readOnly) {
+  let activeMode = mode;
+  if (mode === 'preview' && readOnly) {
+    activeMode = 'readonly';
+  }
+  if (!mode) activeMode = null;
+
+  els.iconBtns.forEach(btn => {
+    const isActive = btn.dataset.mode === activeMode;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-pressed', isActive);
   });
 }
 
