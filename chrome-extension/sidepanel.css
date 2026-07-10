@@ -80,7 +80,7 @@ html, body {
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: var(--fg-secondary);
+  color: #555;
   cursor: pointer;
   transition: background .2s, color .2s;
   font: inherit;
@@ -103,6 +103,12 @@ html, body {
 
 .icon-btn:not(.active):hover {
   background: var(--divider);
+}
+
+.icon-btn.disabled {
+  color: var(--fg-secondary);
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .hint {

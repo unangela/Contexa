@@ -23,6 +23,7 @@ let currentState = {
 };
 
 let activeTabId = null;
+let extensionSupported = false;
 
 function init() {
   els.iconBtns.forEach(btn => {
@@ -87,12 +88,14 @@ function requestState() {
 
     chrome.tabs.sendMessage(tabs[0].id, { type: 'getState' }, (response) => {
       if (chrome.runtime.lastError) {
-        // Tab doesn't support the extension — reset UI
+        // Tab doesn't support the extension — reset UI and disable buttons
         currentState.mode = null;
         currentState.readOnly = false;
+        extensionSupported = false;
         updateActiveButton(null, false);
         return;
       }
+      extensionSupported = true;
       if (response) {
         updateState(response);
       }
@@ -156,6 +159,11 @@ function renderNoteList(notes) {
 
 // ---- Mode switching (icon toolbar, three-way mutual exclusion) ----
 function onModeSelect(mode) {
+  if (!extensionSupported) {
+    toast("当前页面不支持标注");
+    return;
+  }
+
   const activeMode = currentState.mode === 'preview' && currentState.readOnly
     ? 'readonly'
     : currentState.mode;
@@ -238,7 +246,9 @@ function updateActiveButton(mode, readOnly) {
   els.iconBtns.forEach(btn => {
     const isActive = btn.dataset.mode === activeMode;
     btn.classList.toggle('active', isActive);
+    btn.classList.toggle('disabled', !extensionSupported);
     btn.setAttribute('aria-pressed', isActive);
+    btn.setAttribute('aria-disabled', !extensionSupported);
   });
 }
 
