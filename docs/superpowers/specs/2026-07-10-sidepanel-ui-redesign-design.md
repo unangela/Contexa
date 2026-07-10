@@ -250,6 +250,7 @@ function setReadOnly(enabled, onError, onSuccess) {
         return;
       }
       currentState.readOnly = enabled;
+      updateActiveButton(currentState.mode, enabled);
       if (onSuccess) onSuccess();
     });
   });
