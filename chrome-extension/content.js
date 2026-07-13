@@ -60,6 +60,18 @@ function handleContextInvalidated() {
 function init() {
   if (!isExtensionContextValid()) return;
 
+  document.addEventListener("keydown", (e) => {
+    if (e.ctrlKey && e.shiftKey && e.key === "p") {
+      e.preventDefault();
+      setMode('preview');
+      state.readOnly = true;
+      state.selectedId = null;
+      state.editingId = null;
+      renderNotes();
+      notifySidepanel();
+    }
+  });
+
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!isExtensionContextValid()) {
       sendResponse({ error: 'context invalidated' });
