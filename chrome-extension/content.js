@@ -60,18 +60,6 @@ function handleContextInvalidated() {
 function init() {
   if (!isExtensionContextValid()) return;
 
-  document.addEventListener("keydown", (e) => {
-    if (e.ctrlKey && e.shiftKey && e.key === "p") {
-      e.preventDefault();
-      setMode('preview');
-      state.readOnly = true;
-      state.selectedId = null;
-      state.editingId = null;
-      renderNotes();
-      notifySidepanel();
-    }
-  });
-
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!isExtensionContextValid()) {
       sendResponse({ error: 'context invalidated' });
@@ -94,6 +82,10 @@ function init() {
           }
           renderNotes();
           notifySidepanel();
+          sendResponse({ success: true });
+          break;
+        case 'setTheme':
+          applyTheme(message.payload.theme);
           sendResponse({ success: true });
           break;
         case 'getState':
@@ -198,6 +190,13 @@ function init() {
   });
 }
 
+function applyTheme(theme) {
+  if (!shadowRoot) return;
+  const container = shadowRoot.host;
+  container.classList.remove('theme-minimal', 'theme-warm', 'theme-blue', 'theme-mint', 'theme-navy');
+  container.classList.add(`theme-${theme}`);
+}
+
 // ---- One-time Shadow DOM setup ----
 function ensureOverlay() {
   if (shadowRoot) return;
@@ -210,15 +209,77 @@ function ensureOverlay() {
   shadow.innerHTML = `
     <style>
 :host {
-  --ink: #191816;
-  --muted: #6b665f;
-  --line: #ddd4c7;
-  --paper: #f6f0e6;
-  --panel: #fffdf8;
-  --coal: #25211d;
+  --bg: #fafafa;
+  --fg: #1a1a1a;
+  --fg-secondary: #999999;
+  --bar-bg: #efefef;
+  --active-bg: #1a1a1a;
+  --active-fg: #ffffff;
+  --divider: #e0e0e0;
+  --danger: #e05050;
   --accent: #2d6cdf;
-  --warn: #d74f68;
+  --shadow: 0 16px 44px rgba(26, 26, 26, .12);
+}
+
+/* Theme color schemes */
+:host(.theme-minimal) {
+  --bg: #fafafa;
+  --fg: #1a1a1a;
+  --fg-secondary: #999999;
+  --bar-bg: #efefef;
+  --active-bg: #1a1a1a;
+  --active-fg: #ffffff;
+  --divider: #e0e0e0;
+  --danger: #e05050;
+  --shadow: 0 16px 44px rgba(26, 26, 26, .12);
+}
+
+:host(.theme-warm) {
+  --bg: #fffaf0;
+  --fg: #191816;
+  --fg-secondary: #6b665f;
+  --bar-bg: #efe8dc;
+  --active-bg: #25211d;
+  --active-fg: #ffffff;
+  --divider: #ddd4c7;
+  --danger: #d74f68;
   --shadow: 0 16px 44px rgba(37, 33, 29, .14);
+}
+
+:host(.theme-blue) {
+  --bg: #f0f4f8;
+  --fg: #1e293b;
+  --fg-secondary: #64748b;
+  --bar-bg: #e2e8f0;
+  --active-bg: #2563eb;
+  --active-fg: #ffffff;
+  --divider: #cbd5e1;
+  --danger: #dc2626;
+  --shadow: 0 16px 44px rgba(30, 41, 59, .12);
+}
+
+:host(.theme-mint) {
+  --bg: #f0fdf4;
+  --fg: #14532d;
+  --fg-secondary: #527056;
+  --bar-bg: #dcfce7;
+  --active-bg: #10b981;
+  --active-fg: #ffffff;
+  --divider: #bbf7d0;
+  --danger: #ef4444;
+  --shadow: 0 16px 44px rgba(20, 83, 45, .12);
+}
+
+:host(.theme-navy) {
+  --bg: #f1f5f9;
+  --fg: #1e3a5f;
+  --fg-secondary: #64748b;
+  --bar-bg: #e2e8f0;
+  --active-bg: #1e40af;
+  --active-fg: #ffffff;
+  --divider: #cbd5e1;
+  --danger: #dc2626;
+  --shadow: 0 16px 44px rgba(30, 58, 95, .12);
 }
 
 .capture-layer {
@@ -259,10 +320,10 @@ function ensureOverlay() {
   width: 21px;
   height: 21px;
   color: #ffffffff;
-  background: var(--warn);
+  background: var(--danger);
   border: 1px solid #fff;
   border-radius: 999px;
-  box-shadow: 0 3px 3px rgba(37, 33, 29, .24);
+  box-shadow: 0 3px 3px rgba(26, 26, 26, .24);
   font-size: 10px;
   font-weight: 200;
   pointer-events: auto;
@@ -275,8 +336,8 @@ function ensureOverlay() {
 }
 
 .pin.selected {
-  background: var(--muted);
-  outline: 1px solid rgba(37,33,29,.22);
+  background: var(--fg-secondary);
+  outline: 1px solid rgba(26,26,26,.22);
   outline-offset: 1px;
 }
 
@@ -285,10 +346,10 @@ function ensureOverlay() {
   z-index: 4;
   width: 220px;
   padding: 10px 12px;
-  background: #fffceb;
-  border: 1px solid rgba(0,0,0,.12);
+  background: var(--bg);
+  border: 1px solid var(--divider);
   border-radius: 8px;
-  box-shadow: 0 6px 20px rgba(37, 33, 29, .18);
+  box-shadow: var(--shadow);
   pointer-events: auto;
 }
 
@@ -321,7 +382,7 @@ function ensureOverlay() {
   word-break: break-word;
   font-size: 12px;
   line-height: 1.45;
-  color: #444;
+  color: var(--fg-secondary);
 }
 
 .note-pop.editing {
@@ -336,10 +397,10 @@ function ensureOverlay() {
 .note-input,
 .note-textarea {
   width: 100%;
-  border: 1px solid rgba(37,33,29,.2);
+  border: 1px solid var(--divider);
   outline: 0;
-  color: var(--coal);
-  background: rgba(255,255,255,.6);
+  color: var(--active-bg);
+  background: rgba(255,255,255,.8);
   border-radius: 5px;
   font-family: inherit;
   box-sizing: border-box;
@@ -376,7 +437,7 @@ function ensureOverlay() {
   height: 20px;
   padding: 0;
   color: #fff;
-  background: var(--coal);
+  background: var(--active-bg);
   border-radius: 999px;
   border: 1px solid rgba(0,0,0,.1);
   font-size: 12px;
@@ -394,7 +455,7 @@ function ensureOverlay() {
 }
 
 .icon-btn.danger {
-  background: var(--warn);
+  background: var(--danger);
 }
 
 .icon-btn.save-note {
@@ -408,7 +469,7 @@ function ensureOverlay() {
   z-index: 50;
   padding: 10px 14px;
   color: #fff;
-  background: rgba(37,33,29,.94);
+  background: rgba(26,26,26,.94);
   border-radius: 8px;
   transform: translate(-50%, 16px);
   opacity: 0;
@@ -431,10 +492,10 @@ function ensureOverlay() {
   display: flex;
   gap: 4px;
   padding: 4px;
-  background: rgba(255, 253, 248, .96);
-  border: 1px solid rgba(0,0,0,.1);
+  background: rgba(255, 255, 255, .96);
+  border: 1px solid var(--divider);
   border-radius: 10px;
-  box-shadow: 0 4px 16px rgba(37, 33, 29, .14);
+  box-shadow: 0 4px 16px rgba(26, 26, 26, .12);
   pointer-events: auto;
 }
 
@@ -447,17 +508,17 @@ function ensureOverlay() {
   background: transparent;
   border-radius: 7px;
   cursor: pointer;
-  color: var(--muted);
+  color: var(--fg-secondary);
   transition: background .15s, color .15s;
 }
 
 .tool-btn:hover {
-  background: rgba(0,0,0,.06);
-  color: var(--coal);
+  background: var(--divider);
+  color: var(--active-bg);
 }
 
 .tool-btn.active {
-  background: var(--coal);
+  background: var(--active-bg);
   color: #fff;
 }
 
@@ -482,13 +543,13 @@ function ensureOverlay() {
   place-items: center;
   background: transparent;
   border: none;
-  color: var(--muted);
+  color: var(--fg-secondary);
   cursor: pointer;
   transition: color .15s;
 }
 
 .panel-toggle:hover {
-  color: var(--coal);
+  color: var(--active-bg);
 }
 
 .panel-toggle svg {
@@ -580,6 +641,11 @@ function ensureOverlay() {
       event.preventDefault();
       setMode(state.mode === 'annotation' ? 'preview' : 'annotation');
     }
+  });
+
+  chrome.storage.local.get(['contexaTheme'], (result) => {
+    const theme = result.contexaTheme || 'minimal';
+    applyTheme(theme);
   });
 }
 

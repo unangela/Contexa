@@ -1,5 +1,6 @@
 const els = {
   iconBtns: Array.from(document.querySelectorAll('.icon-btn')),
+  themeBtns: Array.from(document.querySelectorAll('.theme-btn')),
   editor: document.getElementById("editor"),
   editorEmpty: document.getElementById("editorEmpty"),
   selectorText: document.getElementById("selectorText"),
@@ -24,10 +25,14 @@ let currentState = {
 
 let activeTabId = null;
 let extensionSupported = false;
+let currentTheme = 'minimal';
 
 function init() {
   els.iconBtns.forEach(btn => {
     btn.addEventListener("click", () => onModeSelect(btn.dataset.mode));
+  });
+  els.themeBtns.forEach(btn => {
+    btn.addEventListener("click", () => setTheme(btn.dataset.theme));
   });
   els.importJson.addEventListener("change", importJson);
 
@@ -78,6 +83,7 @@ function init() {
   });
 
   requestState();
+  loadTheme();
 }
 
 function requestState() {
@@ -249,6 +255,40 @@ function updateActiveButton(mode, readOnly) {
     btn.classList.toggle('disabled', !extensionSupported);
     btn.setAttribute('aria-pressed', isActive);
     btn.setAttribute('aria-disabled', !extensionSupported);
+  });
+}
+
+// ---- Theme switching ----
+function loadTheme() {
+  chrome.storage.local.get(['contexaTheme'], (result) => {
+    const theme = result.contexaTheme || 'minimal';
+    applyTheme(theme);
+  });
+}
+
+function applyTheme(theme) {
+  currentTheme = theme;
+  document.body.className = `theme-${theme}`;
+  
+  els.themeBtns.forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.theme === theme);
+  });
+}
+
+function setTheme(theme) {
+  if (theme === currentTheme) return;
+  
+  applyTheme(theme);
+  
+  chrome.storage.local.set({ contexaTheme: theme }, () => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]) {
+        chrome.tabs.sendMessage(tabs[0].id, {
+          type: 'setTheme',
+          payload: { theme }
+        });
+      }
+    });
   });
 }
 
