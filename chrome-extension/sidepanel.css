@@ -199,6 +199,15 @@ html, body {
   color: var(--fg);
 }
 
+.theme-trigger-dot {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--divider);
+  background: linear-gradient(135deg, #fafafa 50%, #1a1a1a 50%);
+}
+
 .theme-dd-menu {
   position: absolute;
   top: calc(100% + 6px);

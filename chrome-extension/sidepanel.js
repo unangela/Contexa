@@ -4,6 +4,7 @@ const els = {
   themeTrigger: document.getElementById('themeTrigger'),
   themeMenu: document.getElementById('themeMenu'),
   themeItems: Array.from(document.querySelectorAll('.theme-dd-item')),
+  themeTriggerDot: document.getElementById('themeTriggerDot'),
   editor: document.getElementById("editor"),
   editorEmpty: document.getElementById("editorEmpty"),
   selectorText: document.getElementById("selectorText"),
@@ -276,6 +277,13 @@ function applyTheme(theme) {
   els.themeItems.forEach(item => {
     item.classList.toggle('active', item.dataset.theme === theme);
   });
+
+  // Update trigger dot to match selected theme
+  const activeItem = els.themeItems.find(item => item.dataset.theme === theme);
+  if (activeItem) {
+    const dot = activeItem.querySelector('.theme-dot');
+    if (dot) els.themeTriggerDot.style.background = dot.style.background;
+  }
 }
 
 function setTheme(theme) {
