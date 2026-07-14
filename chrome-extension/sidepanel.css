@@ -89,6 +89,9 @@ html, body {
 }
 
 .header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
   margin-bottom: 18px;
   line-height: 1.05;
 }
@@ -172,37 +175,81 @@ html, body {
   opacity: 0.5;
 }
 
-/* ---- Theme selector ---- */
-.theme-bar {
-  display: flex;
-  gap: 6px;
+/* ---- Theme dropdown (header) ---- */
+.theme-dd {
+  position: relative;
+  flex-shrink: 0;
 }
 
-.theme-btn {
+.theme-trigger {
   width: 32px;
   height: 32px;
-  padding: 3px;
-  border: 2px solid transparent;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--divider);
   border-radius: 8px;
   background: transparent;
+  color: var(--fg-secondary);
   cursor: pointer;
-  transition: border-color .15s, transform .15s;
+  transition: background .15s, color .15s;
 }
 
-.theme-btn:hover {
-  transform: scale(1.08);
+.theme-trigger:hover {
+  background: var(--bar-bg);
+  color: var(--fg);
 }
 
-.theme-btn.active {
-  border-color: var(--active-bg);
+.theme-dd-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 150px;
+  padding: 4px;
+  background: #ffffff;
+  border: 1px solid var(--divider);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .12);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: opacity .15s, transform .15s, visibility .15s;
 }
 
-.theme-preview {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border-radius: 5px;
-  box-shadow: 0 1px 3px rgba(0,0,0,.15);
+.theme-dd:hover .theme-dd-menu,
+.theme-dd.open .theme-dd-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.theme-dd-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--fg);
+  cursor: pointer;
+  transition: background .12s;
+}
+
+.theme-dd-item:hover {
+  background: var(--bar-bg);
+}
+
+.theme-dd-item.active {
+  font-weight: 600;
+}
+
+.theme-dot {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--divider);
+  flex-shrink: 0;
 }
 
 .hint {

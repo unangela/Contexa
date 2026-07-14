@@ -1,6 +1,9 @@
 const els = {
   iconBtns: Array.from(document.querySelectorAll('.icon-btn')),
-  themeBtns: Array.from(document.querySelectorAll('.theme-btn')),
+  themeDropdown: document.getElementById('themeDropdown'),
+  themeTrigger: document.getElementById('themeTrigger'),
+  themeMenu: document.getElementById('themeMenu'),
+  themeItems: Array.from(document.querySelectorAll('.theme-dd-item')),
   editor: document.getElementById("editor"),
   editorEmpty: document.getElementById("editorEmpty"),
   selectorText: document.getElementById("selectorText"),
@@ -31,8 +34,8 @@ function init() {
   els.iconBtns.forEach(btn => {
     btn.addEventListener("click", () => onModeSelect(btn.dataset.mode));
   });
-  els.themeBtns.forEach(btn => {
-    btn.addEventListener("click", () => setTheme(btn.dataset.theme));
+  els.themeItems.forEach(item => {
+    item.addEventListener("click", () => setTheme(item.dataset.theme));
   });
   els.importJson.addEventListener("change", importJson);
 
@@ -270,8 +273,8 @@ function applyTheme(theme) {
   currentTheme = theme;
   document.body.className = `theme-${theme}`;
   
-  els.themeBtns.forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.theme === theme);
+  els.themeItems.forEach(item => {
+    item.classList.toggle('active', item.dataset.theme === theme);
   });
 }
 
