@@ -119,6 +119,17 @@ function updateState(state) {
   // sync icon buttons from mode + readOnly state
   updateActiveButton(state.mode, !!state.readOnly);
 
+  // Show selected note's selector in the editor section
+  const selectedNote = (state.notes || []).find(n => n.id === state.selectedId);
+  if (selectedNote) {
+    els.editor.hidden = false;
+    els.editorEmpty.hidden = true;
+    els.selectorText.textContent = selectedNote.selector;
+  } else {
+    els.editor.hidden = true;
+    els.editorEmpty.hidden = false;
+  }
+
   // Render all notes list
   renderNoteList(state.notes || []);
 }
