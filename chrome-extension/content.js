@@ -835,7 +835,8 @@ function applyMode() {
 
   els.root.style.display = '';
   els.noteLayer.style.display = '';
-  els.toolbar.style.display = '';
+  // Cloud mode (preview + readOnly): hide floating toolbar
+  els.toolbar.style.display = (mode === 'preview' && state.readOnly) ? 'none' : '';
 
   if (mode === 'annotation') {
     state.readOnly = false;
