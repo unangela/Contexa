@@ -14,13 +14,15 @@ const els = {
   clearMenu: document.getElementById("clearMenu"),
   exportMenu: document.getElementById("exportMenu"),
   shareUrl: document.getElementById("shareUrl"),
-  saveShareUrl: document.getElementById("saveShareUrl")
+  saveShareUrl: document.getElementById("saveShareUrl"),
+  clearShareUrl: document.getElementById("clearShareUrl")
 };
 
 let currentState = {
   mode: null,
   readOnly: false,
   selectedId: null,
+  openIds: [],
   notes: [],
   total: 0,
   visible: 0
@@ -39,6 +41,7 @@ function init() {
   });
   els.importJson.addEventListener("change", importJson);
   els.saveShareUrl.addEventListener("click", saveShareUrl);
+  els.clearShareUrl.addEventListener("click", clearShareUrl);
 
   chrome.storage.local.get(['contexaShareUrl'], (result) => {
     if (result.contexaShareUrl) {
@@ -138,16 +141,14 @@ function requestState() {
 }
 
 function updateState(state) {
-  let needsRender = false;
-  
-  if (state.mode !== undefined && state.mode !== currentState.mode) {
+  if (state.mode !== undefined) {
     currentState.mode = state.mode;
-    needsRender = true;
   }
-  if (state.readOnly !== undefined && state.readOnly !== currentState.readOnly) {
+  if (state.readOnly !== undefined) {
     currentState.readOnly = state.readOnly;
-    needsRender = true;
   }
+
+  // Only re-render list when notes data actually changes
   if (state.notes !== undefined) {
     const notesChanged = JSON.stringify(state.notes) !== JSON.stringify(currentState.notes);
     if (notesChanged) {
@@ -155,9 +156,33 @@ function updateState(state) {
       renderNoteList(currentState.notes);
     }
   }
-  
+
+  // Update selection without full re-render
+  const prevSelectedId = currentState.selectedId;
+  const prevOpenIds = JSON.stringify(currentState.openIds);
+  if (state.selectedId !== undefined) {
+    currentState.selectedId = state.selectedId;
+  }
+  if (state.openIds !== undefined) {
+    currentState.openIds = state.openIds;
+  }
+  if (currentState.selectedId !== prevSelectedId ||
+      JSON.stringify(currentState.openIds) !== prevOpenIds) {
+    updateNoteSelection();
+  }
+
   const isShared = currentState.mode === 'preview' && currentState.readOnly;
   updateActiveButton(isShared ? 'shared' : currentState.mode, currentState.readOnly);
+}
+
+function updateNoteSelection() {
+  els.noteList.querySelectorAll('.note-item').forEach(item => {
+    const id = item.dataset.id;
+    const isSelected = currentState.readOnly
+      ? currentState.openIds.includes(id)
+      : id === currentState.selectedId;
+    item.classList.toggle('selected', isSelected);
+  });
 }
 
 function renderNoteList(notes) {
@@ -174,6 +199,13 @@ function renderNoteList(notes) {
     const item = document.createElement('div');
     item.className = 'note-item';
     item.dataset.id = note.id;
+
+    const isOpen = currentState.readOnly
+      ? currentState.openIds.includes(note.id)
+      : note.id === currentState.selectedId;
+    if (isOpen) {
+      item.classList.add('selected');
+    }
 
     const badge = document.createElement('span');
     badge.className = 'note-badge';
@@ -206,26 +238,25 @@ function renderNoteList(notes) {
 
 // ---- Mode switching (icon toolbar, three-way mutual exclusion) ----
 function onModeSelect(mode) {
-  if (!extensionSupported) {
-    toast("当前页面不支持标注");
-    return;
-  }
-
-  const activeMode = currentState.mode === 'preview' && currentState.readOnly
-    ? 'shared'
-    : currentState.mode;
-
-  // 点击已激活按钮 → no-op
-  if (mode === activeMode) return;
-
-  // "shared" 在底层映射为 preview + readOnly + load remote
+  // For shared mode, check URL first regardless of extension support,
+  // so users always get a clear prompt when URL is missing.
   if (mode === 'shared') {
     chrome.storage.local.get(['contexaShareUrl'], (result) => {
       const shareUrl = result.contexaShareUrl;
       if (!shareUrl || !shareUrl.trim()) {
-        toast("请先在使用帮助中配置共享 JSON URL");
+        toast("请先设置共享 JSON URL");
         return;
       }
+      if (!extensionSupported) {
+        toast("当前页面不支持标注");
+        return;
+      }
+
+      // URL exists — now check if already active
+      const activeMode = currentState.mode === 'preview' && currentState.readOnly
+        ? 'shared'
+        : currentState.mode;
+      if (mode === activeMode) return;
 
       currentState.mode = 'preview';
       currentState.readOnly = true;
@@ -253,6 +284,17 @@ function onModeSelect(mode) {
       });
     });
   } else {
+    if (!extensionSupported) {
+      toast("当前页面不支持标注");
+      return;
+    }
+
+    // Non-shared modes: check if already active
+    const activeMode = currentState.mode === 'preview' && currentState.readOnly
+      ? 'shared'
+      : currentState.mode;
+    if (mode === activeMode) return;
+
     // 从共享切出时，先关 readOnly 再切模式，保证状态一致
     if (currentState.readOnly) {
       setReadOnly(false, null, () => {
@@ -356,6 +398,13 @@ function saveShareUrl() {
 
   chrome.storage.local.set({ contexaShareUrl: url }, () => {
     toast("共享 URL 已保存");
+  });
+}
+
+function clearShareUrl() {
+  els.shareUrl.value = '';
+  chrome.storage.local.remove('contexaShareUrl', () => {
+    toast("已清空共享 URL");
   });
 }
 

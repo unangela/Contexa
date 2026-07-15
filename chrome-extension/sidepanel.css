@@ -481,6 +481,11 @@ html, body {
   border-color: var(--fg);
 }
 
+.note-item.selected {
+  background: var(--bar-bg);
+  border-color: var(--fg);
+}
+
 .note-badge {
   flex-shrink: 0;
   width: 22px;
@@ -598,6 +603,11 @@ input[type="file"] {
   transition: opacity .2s ease, transform .2s ease;
   pointer-events: none;
   font-size: 13px;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 .help-section h2 {

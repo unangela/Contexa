@@ -185,11 +185,31 @@ function init() {
     }
   });
 
-  // Migrate legacy localStorage data first, then load and activate
+  // Auto-activate on load with priority: remote (shared) > local (preview) > inactive
   migrateLegacyStorage(() => {
-    loadNotes(() => {
-      if (state.notes.length > 0) {
-        setMode('preview');
+    chrome.storage.local.get(['contexaShareUrl'], (result) => {
+      const shareUrl = result.contexaShareUrl;
+      if (shareUrl && shareUrl.trim()) {
+        // Try remote data first → shared mode
+        loadSharedNotes(shareUrl.trim(), (response) => {
+          if (response && response.success && state.notes.length > 0) {
+            setMode('preview', true);
+          } else {
+            // Remote failed or empty, fall back to local
+            loadNotes(() => {
+              if (state.notes.length > 0) {
+                setMode('preview');
+              }
+            });
+          }
+        }, { silent: true });
+      } else {
+        // No share URL, try local data → preview mode
+        loadNotes(() => {
+          if (state.notes.length > 0) {
+            setMode('preview');
+          }
+        });
       }
     });
   });
@@ -767,6 +787,9 @@ function ensureOverlay() {
       event.preventDefault();
       setMode(state.mode === 'annotation' ? 'preview' : 'annotation');
     }
+
+    // Ctrl/Cmd + 0: close all open notes in shared mode
+    onSharedShortcut(event);
   });
 
   chrome.storage.local.get(['contexaTheme'], (result) => {
@@ -890,6 +913,19 @@ function setMode(mode, readOnly) {
       }
       if (!state.editingId) renderNotes();
     }, 600);
+  }
+}
+
+// ---- Shared-mode close-all shortcut (Ctrl/Cmd+0) ----
+function onSharedShortcut(event) {
+  if (!isExtensionContextValid()) return;
+  if (!state.readOnly) return;
+  if ((event.ctrlKey || event.metaKey) && event.key === '0') {
+    if (state.openIds.length === 0) return;
+    event.preventDefault();
+    state.openIds = [];
+    renderNotes();
+    notifySidepanel();
   }
 }
 
@@ -1542,7 +1578,9 @@ function loadNotes(callback) {
   }
 }
 
-function loadSharedNotes(url, callback) {
+function loadSharedNotes(url, callback, options = {}) {
+  const silent = options.silent || false;
+
   if (!isExtensionContextValid()) {
     if (callback) callback({ success: false, error: 'context invalidated' });
     return;
@@ -1553,7 +1591,7 @@ function loadSharedNotes(url, callback) {
     payload: { url }
   }, (response) => {
     if (!response || !response.success) {
-      toast(`加载共享数据失败: ${response?.error || '未知错误'}`);
+      if (!silent) toast(`加载共享数据失败: ${response?.error || '未知错误'}`);
       if (callback) callback({ success: false, error: response?.error });
       return;
     }
@@ -1583,7 +1621,7 @@ function loadSharedNotes(url, callback) {
       });
       notes = matchedPage?.notes || [];
     } else {
-      toast('共享数据格式错误');
+      if (!silent) toast('共享数据格式错误');
       if (callback) callback({ success: false, error: 'Invalid data format' });
       return;
     }
@@ -1633,6 +1671,7 @@ function notifySidepanel(data = {}) {
         mode: state.mode,
         readOnly: state.readOnly,
         selectedId: state.selectedId,
+        openIds: state.readOnly ? state.openIds : undefined,
         notes: state.notes,
         total: state.notes.length,
         ...data
