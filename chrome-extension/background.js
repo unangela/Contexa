@@ -9,6 +9,23 @@ chrome.action.onClicked.addListener((tab) => {
 const panelOpen = {};
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'fetchSharedNotes') {
+    fetch(message.payload.url, { cache: 'no-cache' })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        sendResponse({ success: true, data });
+      })
+      .catch(error => {
+        sendResponse({ success: false, error: error.message });
+      });
+    return true;
+  }
+
   sendResponse();
 
   if (message.type === 'update') {

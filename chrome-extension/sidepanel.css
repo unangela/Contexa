@@ -473,7 +473,7 @@ html, body {
   border: 1px solid var(--divider);
   border-radius: 8px;
   cursor: pointer;
-  transition: background .15s, border-color .15s;
+  transition: background .15s;
 }
 
 .note-item:hover {
@@ -600,7 +600,105 @@ input[type="file"] {
   font-size: 13px;
 }
 
-.toast.show {
-  opacity: 1;
-  transform: translate(-50%, 0);
+.help-section h2 {
+  margin-bottom: 10px;
+  font-size: 15px;
+}
+
+.help-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--fg-secondary);
+}
+
+.help-row kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  background: var(--bar-bg);
+  border: 1px solid var(--divider);
+  border-radius: 5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.help-item {
+  margin-bottom: 10px;
+}
+
+.help-title {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.help-desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--fg-secondary);
+}
+
+.help-desc a {
+  color: var(--active-bg);
+  text-decoration: none;
+}
+
+.help-desc a:hover {
+  text-decoration: underline;
+}
+
+.link-btn {
+  display: inline;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: var(--active-bg);
+  font: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.link-btn:hover {
+  color: var(--fg);
+}
+
+.share-url-input {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.share-url-input input {
+  flex: 1;
+  height: 32px;
+  padding: 0 10px;
+  background: var(--bar-bg);
+  border: 1px solid var(--divider);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--fg);
+  outline: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.share-url-input input:focus {
+  border-color: var(--active-bg);
+}
+
+.share-url-input .btn {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
 }

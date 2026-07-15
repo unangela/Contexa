@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "DOM Contexa",
+  "name": "Contexa",
   "version": "0.2.0",
   "description": "Design. Explain. Deliver.",
   "permissions": ["activeTab", "sidePanel", "storage"],
   "action": {
-    "default_title": "DOM Contexa",
+    "default_title": "Contexa",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",

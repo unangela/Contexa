@@ -69,7 +69,9 @@ function init() {
     try {
       switch (message.type) {
         case 'setMode':
-          setMode(message.payload.mode);
+          const newMode = message.payload.mode;
+          const newReadOnly = message.payload.readOnly;
+          setMode(newMode, newReadOnly);
           sendResponse({ success: true });
           break;
         case 'setReadOnly':
@@ -83,6 +85,9 @@ function init() {
           renderNotes();
           notifySidepanel();
           sendResponse({ success: true });
+          break;
+        case 'loadSharedNotes':
+          loadSharedNotes(message.payload.url, sendResponse);
           break;
         case 'setTheme':
           applyTheme(message.payload.theme);
@@ -836,10 +841,13 @@ function removeCursorStyle() {
   document.documentElement.classList.remove('dom-notes-crosshair');
 }
 
-function setMode(mode) {
+function setMode(mode, readOnly) {
   if (!isExtensionContextValid()) return;
   const prevMode = state.mode;
   state.mode = mode;
+  if (readOnly !== undefined) {
+    state.readOnly = !!readOnly;
+  }
 
   if (mode === null) {
     // fully tearing down
@@ -860,11 +868,17 @@ function setMode(mode) {
 
   applyMode();
 
-  // load notes then render
-  loadNotes(() => {
+  // In shared mode (readOnly), skip local cache - notes are loaded remotely
+  if (state.readOnly) {
     renderNotes();
     notifySidepanel();
-  });
+  } else {
+    // load notes then render
+    loadNotes(() => {
+      renderNotes();
+      notifySidepanel();
+    });
+  }
 
   tryInjectObserver();
 
@@ -1526,6 +1540,62 @@ function loadNotes(callback) {
     handleContextInvalidated();
     if (callback) callback();
   }
+}
+
+function loadSharedNotes(url, callback) {
+  if (!isExtensionContextValid()) {
+    if (callback) callback({ success: false, error: 'context invalidated' });
+    return;
+  }
+
+  chrome.runtime.sendMessage({
+    type: 'fetchSharedNotes',
+    payload: { url }
+  }, (response) => {
+    if (!response || !response.success) {
+      toast(`加载共享数据失败: ${response?.error || '未知错误'}`);
+      if (callback) callback({ success: false, error: response?.error });
+      return;
+    }
+
+    const data = response.data;
+    let notes = [];
+
+    if (Array.isArray(data.notes)) {
+      notes = data.notes;
+    } else if (Array.isArray(data.pages)) {
+      const currentUrl = window.location.href;
+      const matchedPage = data.pages.find(page => {
+        if (!page.url || !page.notes) return false;
+        try {
+          const sharedUrl = new URL(page.url);
+          const current = new URL(currentUrl);
+          if (sharedUrl.hostname === current.hostname && sharedUrl.pathname === current.pathname) {
+            return true;
+          }
+          if (page.url === currentUrl) {
+            return true;
+          }
+          return false;
+        } catch (e) {
+          return page.url === currentUrl;
+        }
+      });
+      notes = matchedPage?.notes || [];
+    } else {
+      toast('共享数据格式错误');
+      if (callback) callback({ success: false, error: 'Invalid data format' });
+      return;
+    }
+
+    state.notes = notes;
+    state.selectedId = null;
+    state.editingId = null;
+    renderNotes();
+    notifySidepanel();
+
+    if (callback) callback({ success: true });
+  });
 }
 
 function saveNotes() {
