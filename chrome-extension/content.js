@@ -71,8 +71,17 @@ function init() {
         case 'setMode':
           const newMode = message.payload.mode;
           const newReadOnly = message.payload.readOnly;
-          setMode(newMode, newReadOnly);
-          sendResponse({ success: true });
+          if (newReadOnly && message.payload.shareUrl) {
+            // Shared mode: set mode + load remote data in one atomic operation
+            setMode(newMode, newReadOnly);
+            loadSharedNotes(message.payload.shareUrl, (result) => {
+              sendResponse({ success: true, shared: result });
+            });
+            return true; // async response
+          } else {
+            setMode(newMode, newReadOnly);
+            sendResponse({ success: true });
+          }
           break;
         case 'setReadOnly':
           state.readOnly = !!message.payload.readOnly;
@@ -88,7 +97,7 @@ function init() {
           break;
         case 'loadSharedNotes':
           loadSharedNotes(message.payload.url, sendResponse);
-          break;
+          return true; // async response
         case 'setTheme':
           applyTheme(message.payload.theme);
           sendResponse({ success: true });
@@ -104,6 +113,10 @@ function init() {
           break;
         case 'deleteNote':
           deleteNote(message.payload.id);
+          sendResponse({ success: true });
+          break;
+        case 'reorderNotes':
+          reorderNotes(message.payload.orderedIds);
           sendResponse({ success: true });
           break;
         case 'selectNote':
@@ -1095,6 +1108,33 @@ function deleteNote(noteId) {
   notifySidepanel();
 }
 
+function reorderNotes(orderedIds) {
+  if (!isExtensionContextValid()) return;
+  if (state.readOnly) return; // Shared mode: never modify data
+
+  // Build a map for quick lookup
+  const noteMap = new Map(state.notes.map(n => [n.id, n]));
+  const reordered = [];
+
+  // Add notes in the new order
+  for (const id of orderedIds) {
+    const note = noteMap.get(id);
+    if (note) {
+      reordered.push(note);
+      noteMap.delete(id);
+    }
+  }
+
+  // Append any notes not in orderedIds (e.g. newly added during drag)
+  for (const remaining of noteMap.values()) {
+    reordered.push(remaining);
+  }
+
+  state.notes = reordered;
+  saveNotes();
+  renderNotes();
+}
+
 // ---- Render pins (works in both annotation and preview modes) ----
 function renderNotes() {
   if (!isExtensionContextValid()) return;
@@ -1591,7 +1631,7 @@ function loadSharedNotes(url, callback, options = {}) {
     payload: { url }
   }, (response) => {
     if (!response || !response.success) {
-      if (!silent) toast(`加载共享数据失败: ${response?.error || '未知错误'}`);
+      if (!silent) toast(`加载云端数据失败: ${response?.error || '未知错误'}`);
       if (callback) callback({ success: false, error: response?.error });
       return;
     }
@@ -1621,7 +1661,7 @@ function loadSharedNotes(url, callback, options = {}) {
       });
       notes = matchedPage?.notes || [];
     } else {
-      if (!silent) toast('共享数据格式错误');
+      if (!silent) toast('云端数据格式错误');
       if (callback) callback({ success: false, error: 'Invalid data format' });
       return;
     }
@@ -1632,7 +1672,7 @@ function loadSharedNotes(url, callback, options = {}) {
     renderNotes();
     notifySidepanel();
 
-    if (callback) callback({ success: true });
+    if (callback) callback({ success: true, count: notes.length });
   });
 }
 

@@ -93,14 +93,14 @@
           <span>预览</span>
         </button>
         <button class="icon-btn" data-mode="shared" aria-pressed="false">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-          <span>共享</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+          <span>云端</span>
         </button>
       </div>
     </section>
 
     <section class="panel">
-      <div class="empty">💡 开启标注模式，点击页面中的元素即可添加标注</div>
+      <div class="empty" id="modeHint">💡 选中标注模式，点击页面中的元素即可添加标注</div>
     </section>
 
 
@@ -143,18 +143,14 @@
         <div class="help-row"><kbd>⌘</kbd><kbd>E</kbd><span>切换标注 / 预览模式</span></div>
       </div>
       <div class="help-item">
-        <p class="help-title">标注模式</p>
-        <p class="help-desc">点击页面元素可添加标注，此时不可以操作网页</p>
+        <p class="help-title">排序备注</p>
+        <p class="help-desc">在备注列表中拖拽备注项可调整序号顺序</p>
       </div>
       <div class="help-item">
-        <p class="help-title">预览模式</p>
-        <p class="help-desc">可以操作网页，此时不可新增标注，点击已有标注可以编辑</p>
-      </div>
-      <div class="help-item">
-        <p class="help-title">共享模式</p>
-        <p class="help-desc">从在线 JSON 文件加载备注，适合团队协作或演示</p>
+        <p class="help-title">云端配置</p>
+        <p class="help-desc">配置 JSON URL 后，可在云端模式下加载在线备注</p>
         <div class="share-url-input">
-          <input type="text" id="shareUrl" placeholder="输入共享 JSON URL" />
+          <input type="text" id="shareUrl" placeholder="输入云端 JSON URL" />
           <button class="btn" id="saveShareUrl">保存</button>
           <button class="btn" id="clearShareUrl">清空</button>
         </div>

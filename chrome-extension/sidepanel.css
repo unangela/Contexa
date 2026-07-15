@@ -486,6 +486,39 @@ html, body {
   border-color: var(--fg);
 }
 
+.note-drag-handle {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  color: var(--fg-secondary);
+  opacity: 0.3;
+  cursor: grab;
+  transition: opacity .15s;
+}
+
+.note-item:hover .note-drag-handle {
+  opacity: 0.7;
+}
+
+.note-drag-handle:active {
+  cursor: grabbing;
+}
+
+.note-item.dragging {
+  opacity: 0.4;
+}
+
+.note-item.drag-over-top {
+  border-top: 2px solid var(--active-bg);
+  margin-top: -1px;
+}
+
+.note-item.drag-over-bottom {
+  border-bottom: 2px solid var(--active-bg);
+  margin-bottom: -1px;
+}
+
 .note-badge {
   flex-shrink: 0;
   width: 22px;

@@ -15,7 +15,8 @@ const els = {
   exportMenu: document.getElementById("exportMenu"),
   shareUrl: document.getElementById("shareUrl"),
   saveShareUrl: document.getElementById("saveShareUrl"),
-  clearShareUrl: document.getElementById("clearShareUrl")
+  clearShareUrl: document.getElementById("clearShareUrl"),
+  modeHint: document.getElementById("modeHint")
 };
 
 let currentState = {
@@ -141,11 +142,20 @@ function requestState() {
 }
 
 function updateState(state) {
+  let needsRender = false;
+
   if (state.mode !== undefined) {
     currentState.mode = state.mode;
   }
+
+  // Re-render when readOnly changes (e.g. entering/leaving cloud mode),
+  // because the empty-state import button visibility depends on it.
+  const prevReadOnly = currentState.readOnly;
   if (state.readOnly !== undefined) {
     currentState.readOnly = state.readOnly;
+    if (prevReadOnly !== state.readOnly) {
+      needsRender = true;
+    }
   }
 
   // Only re-render list when notes data actually changes
@@ -153,8 +163,12 @@ function updateState(state) {
     const notesChanged = JSON.stringify(state.notes) !== JSON.stringify(currentState.notes);
     if (notesChanged) {
       currentState.notes = state.notes;
-      renderNoteList(currentState.notes);
+      needsRender = true;
     }
+  }
+
+  if (needsRender) {
+    renderNoteList(currentState.notes);
   }
 
   // Update selection without full re-render
@@ -185,13 +199,21 @@ function updateNoteSelection() {
   });
 }
 
+let dragSrcId = null;
+
 function renderNoteList(notes) {
   els.noteList.innerHTML = '';
 
   const hasNotes = notes.length > 0;
-  els.emptyState.hidden = hasNotes;
-  els.actionsRow.hidden = !hasNotes;
+  const isReadOnly = currentState.readOnly;
+
   els.noteList.hidden = !hasNotes;
+  els.emptyState.hidden = hasNotes;
+  els.actionsRow.hidden = !hasNotes || isReadOnly;
+
+  // Hide import button in empty state when in shared mode
+  const emptyImportBtn = els.emptyState.querySelector('label[for="importJson"]');
+  if (emptyImportBtn) emptyImportBtn.hidden = isReadOnly;
 
   if (!hasNotes) return;
 
@@ -205,6 +227,16 @@ function renderNoteList(notes) {
       : note.id === currentState.selectedId;
     if (isOpen) {
       item.classList.add('selected');
+    }
+
+    // Drag handle only in editable modes (not shared/readOnly)
+    if (!currentState.readOnly) {
+      item.draggable = true;
+
+      const handle = document.createElement('span');
+      handle.className = 'note-drag-handle';
+      handle.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>';
+      item.appendChild(handle);
     }
 
     const badge = document.createElement('span');
@@ -232,7 +264,78 @@ function renderNoteList(notes) {
       });
     });
 
+    // Drag & Drop sorting — only in editable modes
+    if (!currentState.readOnly) {
+      item.addEventListener('dragstart', (e) => {
+        dragSrcId = note.id;
+        item.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+
+      item.addEventListener('dragend', () => {
+        item.classList.remove('dragging');
+        els.noteList.querySelectorAll('.note-item').forEach(el => {
+          el.classList.remove('drag-over-top', 'drag-over-bottom');
+        });
+        dragSrcId = null;
+      });
+
+      item.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (!dragSrcId || dragSrcId === note.id) return;
+
+        const rect = item.getBoundingClientRect();
+        const isAbove = e.clientY < rect.top + rect.height / 2;
+        item.classList.toggle('drag-over-top', isAbove);
+        item.classList.toggle('drag-over-bottom', !isAbove);
+      });
+
+      item.addEventListener('dragleave', () => {
+        item.classList.remove('drag-over-top', 'drag-over-bottom');
+      });
+
+      item.addEventListener('drop', (e) => {
+        e.preventDefault();
+        item.classList.remove('drag-over-top', 'drag-over-bottom');
+        if (!dragSrcId || dragSrcId === note.id) return;
+
+        const rect = item.getBoundingClientRect();
+        const insertBefore = e.clientY < rect.top + rect.height / 2;
+        reorderNotes(dragSrcId, note.id, insertBefore);
+      });
+    }
+
     els.noteList.appendChild(item);
+  });
+}
+
+function reorderNotes(srcId, targetId, insertBefore) {
+  const notes = [...currentState.notes];
+  const srcIdx = notes.findIndex(n => n.id === srcId);
+  const targetIdx = notes.findIndex(n => n.id === targetId);
+  if (srcIdx === -1 || targetIdx === -1) return;
+
+  const [moved] = notes.splice(srcIdx, 1);
+  // Recalculate target index after removal
+  const newTargetIdx = notes.findIndex(n => n.id === targetId);
+  notes.splice(insertBefore ? newTargetIdx : newTargetIdx + 1, 0, moved);
+
+  currentState.notes = notes;
+  renderNoteList(currentState.notes);
+
+  // Sync to content script
+  const orderedIds = notes.map(n => n.id);
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (!tabs[0]) return;
+    chrome.tabs.sendMessage(tabs[0].id, {
+      type: 'reorderNotes',
+      payload: { orderedIds }
+    }, () => {
+      if (chrome.runtime.lastError) {
+        toast("当前页面不支持操作");
+      }
+    });
   });
 }
 
@@ -244,7 +347,7 @@ function onModeSelect(mode) {
     chrome.storage.local.get(['contexaShareUrl'], (result) => {
       const shareUrl = result.contexaShareUrl;
       if (!shareUrl || !shareUrl.trim()) {
-        toast("请先设置共享 JSON URL");
+        toast("请先设置云端 JSON URL");
         return;
       }
       if (!extensionSupported) {
@@ -261,25 +364,32 @@ function onModeSelect(mode) {
       currentState.mode = 'preview';
       currentState.readOnly = true;
       updateActiveButton('shared', true);
+      renderNoteList(currentState.notes);
 
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (!tabs[0]) return;
         chrome.tabs.sendMessage(tabs[0].id, {
           type: 'setMode',
-          payload: { mode: 'preview', readOnly: true }
-        }, () => {
-          sendToActiveTab({
-            type: 'loadSharedNotes',
-            payload: { url: shareUrl.trim() }
-          }, (response) => {
-            if (!response || !response.success) {
-              toast("加载共享数据失败");
-              currentState.readOnly = false;
-              updateActiveButton('preview', false);
-            } else {
-              toast("已开启共享模式");
-            }
-          });
+          payload: { mode: 'preview', readOnly: true, shareUrl: shareUrl.trim() }
+        }, (response) => {
+          if (chrome.runtime.lastError || !response || !response.success) {
+            toast("加载云端数据失败");
+            currentState.readOnly = false;
+            updateActiveButton('preview', false);
+            renderNoteList(currentState.notes);
+            return;
+          }
+          const shared = response.shared;
+          if (!shared || !shared.success) {
+            toast("加载云端数据失败");
+            currentState.readOnly = false;
+            updateActiveButton('preview', false);
+            renderNoteList(currentState.notes);
+          } else if (shared.count === 0) {
+            toast("当前网页无云端数据");
+          } else {
+            toast("已开启云端模式");
+          }
         });
       });
     });
@@ -313,6 +423,7 @@ function onModeSelect(mode) {
 function setReadOnly(enabled, onError, onSuccess) {
   currentState.readOnly = enabled;
   updateActiveButton(currentState.mode, enabled);
+  renderNoteList(currentState.notes);
 
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (!tabs[0]) return;
@@ -323,6 +434,7 @@ function setReadOnly(enabled, onError, onSuccess) {
       if (chrome.runtime.lastError) {
         currentState.readOnly = !enabled;
         updateActiveButton(currentState.mode, !enabled);
+        renderNoteList(currentState.notes);
         toast("当前页面不支持操作");
         if (onError) onError();
         return;
@@ -369,6 +481,23 @@ function updateActiveButton(mode, readOnly) {
     btn.setAttribute('aria-pressed', isActive);
     btn.setAttribute('aria-disabled', !extensionSupported);
   });
+
+  updateModeHint(activeMode);
+}
+
+const modeHints = {
+  annotation: '📝 点击页面元素可添加标注，此时不可以操作网页',
+  preview: '👁️ 可以操作网页，点击已有标注可以编辑',
+  shared: '☁️ 已从云端加载备注，数据只读不可编辑'
+};
+
+function updateModeHint(activeMode) {
+  if (!els.modeHint) return;
+  if (activeMode && modeHints[activeMode]) {
+    els.modeHint.textContent = modeHints[activeMode];
+  } else {
+    els.modeHint.textContent = '💡 选中标注模式，点击页面中的元素即可添加标注';
+  }
 }
 
 function cycleMode() {
@@ -392,19 +521,19 @@ function cycleMode() {
 function saveShareUrl() {
   const url = els.shareUrl.value.trim();
   if (!url) {
-    toast("请输入有效的共享 URL");
+    toast("请输入有效的云端 URL");
     return;
   }
 
   chrome.storage.local.set({ contexaShareUrl: url }, () => {
-    toast("共享 URL 已保存");
+    toast("云端 URL 已保存");
   });
 }
 
 function clearShareUrl() {
   els.shareUrl.value = '';
   chrome.storage.local.remove('contexaShareUrl', () => {
-    toast("已清空共享 URL");
+    toast("已清空云端 URL");
   });
 }
 
@@ -504,6 +633,12 @@ function downloadJson(data, filename) {
   URL.revokeObjectURL(link.href);
 }
 
+function timestamp() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+}
+
 // ---- Export ----
 function exportPage() {
   sendToActiveTab({ type: "exportJson" }, (response) => {
@@ -511,8 +646,14 @@ function exportPage() {
       toast("当前页面不支持操作");
       return;
     }
-    downloadJson(response.data, "dom-notes.json");
-    toast("JSON 已导出");
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      let title = 'untitled';
+      if (tabs[0] && tabs[0].title) {
+        title = tabs[0].title.replace(/[\\/:*?"<>|]/g, '').trim() || 'untitled';
+      }
+      downloadJson(response.data, `${title}_${timestamp()}.json`);
+      toast("JSON 已导出");
+    });
   });
 }
 
@@ -536,7 +677,7 @@ function exportAll() {
       exportedAt: new Date().toISOString(),
       pages
     };
-    downloadJson(exportData, "dom-notes-all.json");
+    downloadJson(exportData, `share_${timestamp()}.json`);
     toast(`已导出 ${pages.length} 个页面的数据`);
   });
 }
