@@ -13,8 +13,12 @@
         <strong>🏷️ Contexa</strong>
         <span>Design. Explain. Deliver.</span>
       </div>
+      <div class="header-actions">
+        <button class="lang-toggle" id="langToggle" title data-i18n-title="lang.switch">
+          <span id="langLabel">中</span>
+        </button>
       <div class="theme-dd" id="themeDropdown">
-        <button class="theme-trigger" id="themeTrigger" title="切换主题">
+        <button class="theme-trigger" id="themeTrigger" title data-i18n-title="theme.switch">
           <span class="theme-trigger-dot" id="themeTriggerDot"></span>
         </button>
         <div class="theme-dd-menu" id="themeMenu">
@@ -80,32 +84,33 @@
           </div>
         </div>
       </div>
+      </div>
     </header>
 
     <section class="panel">
       <div class="icon-bar">
         <button class="icon-btn" data-mode="annotation" aria-pressed="false">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-          <span>标注</span>
+          <span data-i18n="mode.annotation">标注</span>
         </button>
         <button class="icon-btn" data-mode="preview" aria-pressed="false">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          <span>预览</span>
+          <span data-i18n="mode.preview">预览</span>
         </button>
         <button class="icon-btn" data-mode="shared" aria-pressed="false">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
-          <span>云端</span>
+          <span data-i18n="mode.shared">云端</span>
         </button>
       </div>
     </section>
 
     <section class="panel">
-      <div class="empty" id="modeHint">💡 选中标注模式，点击页面中的元素即可添加标注</div>
+      <div class="empty" id="modeHint" data-i18n="hint.default">💡 选中标注模式，点击页面中的元素即可添加标注</div>
       <div class="grant-box" id="grantBox" hidden>
         <div class="grant-icon">🔒</div>
-        <p class="grant-text">Contexa 未获准访问当前网站</p>
-        <p class="grant-desc">授权 <strong id="grantHostname"></strong> 后即可标注</p>
-        <button class="btn primary grant-btn" id="grantBtn">授权访问</button>
+        <p class="grant-text" data-i18n="grant.title">Contexa 未获准访问当前网站</p>
+        <p class="grant-desc"><span data-i18n="grant.descPre">授权</span> <strong id="grantHostname"></strong> <span data-i18n="grant.descPost">后即可标注</span></p>
+        <button class="btn primary grant-btn" id="grantBtn" data-i18n="grant.btn">授权访问</button>
       </div>
     </section>
 
@@ -113,66 +118,71 @@
     <section class="panel" id="notesSection">
       <div id="noteList" class="note-list"></div>
       <div id="emptyState" class="empty-state">
-        <p>暂无标注</p>
-        <label class="btn primary" for="importJson">导入已有数据</label>
+        <p data-i18n="empty.notes">暂无标注</p>
+        <label class="btn primary" for="importJson" data-i18n="empty.import">导入已有数据</label>
       </div>
       <div class="row" id="actionsRow">
         <div class="dd">
-          <button class="btn-icon" id="clearAll" title="清空备注">
+          <button class="btn-icon" id="clearAll" title data-i18n-title="btn.clearAll">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="3 6 5 6 21 6"></polyline>
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
             </svg>
           </button>
           <div class="dd-menu" id="clearMenu">
-            <div class="dd-item" data-scope="page">清空当前页面</div>
-            <div class="dd-item danger" data-scope="all">清空全部数据</div>
+            <div class="dd-item" data-scope="page" data-i18n="clear.page">清空当前页面</div>
+            <div class="dd-item danger" data-scope="all" data-i18n="clear.all">清空全部数据</div>
           </div>
         </div>
         <div class="row-spacer"></div>
         <div class="dd">
-          <button class="btn primary" id="exportJson">导出</button>
+          <button class="btn primary" id="exportJson" data-i18n="btn.export">导出</button>
           <div class="dd-menu dd-right" id="exportMenu">
-            <div class="dd-item" data-scope="page">导出当前页面</div>
-            <div class="dd-item" data-scope="all">导出全部数据</div>
+            <div class="dd-item" data-scope="page" data-i18n="export.page">导出当前页面</div>
+            <div class="dd-item" data-scope="all" data-i18n="export.all">导出全部数据</div>
           </div>
         </div>
-        <label class="btn" for="importJson">导入</label>
+        <label class="btn" for="importJson" data-i18n="btn.import">导入</label>
       </div>
       <input id="importJson" type="file" accept="application/json,.json">
     </section>
 
     <section class="panel help-section">
-      <h2>📖 使用帮助</h2>
+      <h2 data-i18n="help.title">📖 使用帮助</h2>
       <div class="help-item">
-        <p class="help-title">快捷键</p>
-        <div class="help-row"><kbd>⌘</kbd><kbd>E</kbd><span>切换标注 / 预览模式</span></div>
+        <p class="help-title" data-i18n="help.shortcut">快捷键</p>
+        <div class="help-row"><kbd>⌘</kbd><kbd>E</kbd><span data-i18n="help.shortcutDesc">切换标注 / 预览模式</span></div>
       </div>
       <div class="help-item">
-        <p class="help-title">排序调整</p>
-        <p class="help-desc">在备注列表中拖拽备注项可调整序号顺序</p>
+        <p class="help-title" data-i18n="help.sort">排序调整</p>
+        <p class="help-desc" data-i18n="help.sortDesc">在备注列表中拖拽备注项可调整序号顺序</p>
       </div>
       <div class="help-item">
-        <p class="help-title">云端配置</p>
-        <p class="help-desc">配置 JSON URL 后，可在云端模式下加载在线备注</p>
+        <p class="help-title" data-i18n="help.cloud">云端配置</p>
+        <p class="help-desc" data-i18n="help.cloudDesc">配置 JSON URL 后，可在云端模式下加载在线备注</p>
         <div class="share-url-input">
-          <input type="text" id="shareUrl" placeholder="输入云端 JSON URL" />
-          <button class="btn" id="saveShareUrl">保存</button>
-          <button class="btn" id="clearShareUrl">清空</button>
+          <input type="text" id="shareUrl" data-i18n-ph="help.cloudPlaceholder" placeholder="输入云端 JSON URL" />
+          <button class="btn" id="saveShareUrl" data-i18n="btn.save">保存</button>
+          <button class="btn" id="clearShareUrl" data-i18n="btn.clear">清空</button>
         </div>
       </div>
       <div class="help-item">
-        <p class="help-title">域名管理</p>
-        <p class="help-desc">已授权的网站可在任意页面自动标注</p>
+        <p class="help-title" data-i18n="help.domain">域名管理</p>
+        <p class="help-desc" data-i18n="help.domainDesc">已授权的网站可在任意页面自动标注</p>
         <div id="grantedDomainList" class="granted-domain-list"></div>
       </div>
       <div class="help-item">
-        <p class="help-title">本地文件使用</p>
-        <p class="help-desc">在 <button class="link-btn" data-url="chrome://extensions">chrome://extensions</button> 中启用"允许访问文件网址"后，可在 file:// 页面使用标注。</p>
+        <p class="help-title" data-i18n="help.file">本地文件使用</p>
+        <p class="help-desc">
+          <span data-i18n="help.fileDescPre">在</span>
+          <button class="link-btn" data-url="chrome://extensions" data-i18n="help.fileLink">chrome://extensions</button>
+          <span data-i18n="help.fileDescPost">中启用"允许访问文件网址"后，可在 file:// 页面使用标注。</span>
+        </p>
       </div>
     </section>
   </div>
 
+  <script src="i18n.js"></script>
   <script src="sidepanel.js"></script>
 </body>
 </html>

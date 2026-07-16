@@ -1,3 +1,7 @@
+// 引入共享 i18n（service worker 支持 importScripts）
+importScripts('i18n.js');
+const t = i18n.t;
+
 // Track panel visibility per window (声明提前，避免引用先于声明)
 const panelOpen = {};
 
@@ -19,6 +23,15 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 // 也覆盖 service worker 被唤醒、未触发 onInstalled 的情况（每次 SW 启动检查一次）
 restoreRegisteredScripts();
+// 初始化语言（同步检测 + 异步从 storage 修正）
+i18n.init();
+
+// 监听语言切换：sidepanel 改语言后，background 同步更新
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.contexaLang) {
+    i18n.setLang(changes.contexaLang.newValue || 'zh');
+  }
+});
 
 chrome.action.onClicked.addListener((tab) => {
   chrome.sidePanel.open({
@@ -94,7 +107,7 @@ async function registerDomain(hostname) {
   await chrome.scripting.registerContentScripts([{
     id: id,
     matches: [`*://${hostname}/*`],
-    js: ['content.js'],
+    js: ['i18n.js', 'content.js'],
     runAt: 'document_idle'
   }]);
 }
@@ -113,7 +126,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'fetchSharedNotes') {
     // SSRF 校验：非法 URL 直接拒绝
     if (!isAllowedFetchUrl(message.payload && message.payload.url)) {
-      sendResponse({ success: false, error: 'URL 不允许（仅限公网 http/https）' });
+      sendResponse({ success: false, error: t('err.ssrBlocked') });
       return false;
     }
 
@@ -137,7 +150,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'grantDomain') {
     const hostname = message.payload && message.payload.hostname;
     if (!hostname) {
-      sendResponse({ success: false, error: '缺少 hostname' });
+      sendResponse({ success: false, error: t('err.missingHost') });
       return false;
     }
     // grantDomain 由 sidepanel 发出（无 sender.tab），tabId 显式由 payload 传入
@@ -152,7 +165,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           try {
             await chrome.scripting.executeScript({
               target: { tabId },
-              files: ['content.js']
+              files: ['i18n.js', 'content.js']
             });
           } catch (e) {
             // 当前页面可能已注入过或无法注入（如已通过静态注入），忽略
@@ -169,12 +182,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'injectCurrentTab') {
     const tabId = message.payload && message.payload.tabId;
     if (typeof tabId !== 'number') {
-      sendResponse({ success: false, error: '缺少 tabId' });
+      sendResponse({ success: false, error: t('err.missingTabId') });
       return false;
     }
     chrome.scripting.executeScript({
       target: { tabId },
-      files: ['content.js']
+      files: ['i18n.js', 'content.js']
     })
       .then(() => sendResponse({ success: true }))
       .catch(err => sendResponse({ success: false, error: err && err.message }));
@@ -185,7 +198,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'revokeDomain') {
     const hostname = message.payload && message.payload.hostname;
     if (!hostname) {
-      sendResponse({ success: false, error: '缺少 hostname' });
+      sendResponse({ success: false, error: t('err.missingHost') });
       return false;
     }
     const origin = `*://${hostname}/*`;

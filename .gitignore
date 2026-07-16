@@ -1,1 +1,9 @@
 .zcode
+.DS_Store
+chrome-extension/.DS_Store
+chrome-extension.crx
+chrome-extension.pem
+store/
+store/
+store/
+docs

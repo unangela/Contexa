@@ -4,6 +4,9 @@
 (() => {
 if (window.__contexaInjected) return;
 
+// i18n（i18n.js 已在前注入，window.i18n 可用）
+const t = (typeof i18n !== 'undefined') ? i18n.t : (k, v) => k;
+
 const state = {
   mode: null, // 'annotation' | 'preview' | null
   readOnly: false, // only meaningful in preview mode
@@ -68,6 +71,9 @@ function init() {
   // 标记已注入，防止动态注入与静态注入重复初始化
   window.__contexaInjected = true;
 
+  // 初始化语言
+  if (typeof i18n !== 'undefined') i18n.init();
+
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!isExtensionContextValid()) {
       sendResponse({ error: 'context invalidated' });
@@ -108,6 +114,23 @@ function init() {
           return true; // async response
         case 'setTheme':
           applyTheme(message.payload.theme);
+          sendResponse({ success: true });
+          break;
+        case 'setLang':
+          if (typeof i18n !== 'undefined') {
+            i18n.setLang(message.payload.lang, () => {
+              // 语言切换后重新渲染（toolbar title、pin title 等会更新）
+              renderNotes();
+              if (shadowRoot) {
+                const btnA = shadowRoot.getElementById('btnAnnotation');
+                const btnP = shadowRoot.getElementById('btnPreview');
+                const btnPanel = shadowRoot.getElementById('btnPanel');
+                if (btnA) btnA.title = t('toolbar.annotation');
+                if (btnP) btnP.title = t('toolbar.preview');
+                if (btnPanel) btnPanel.title = t('toolbar.panel');
+              }
+            });
+          }
           sendResponse({ success: true });
           break;
         case 'getState':
@@ -153,13 +176,13 @@ function init() {
           sendResponse({ success: true });
           break;
         case 'clearAll':
-          if (confirm("确定清空当前页面的全部备注吗？")) {
+          if (confirm(t('confirm.clearPage'))) {
             state.notes = [];
             state.selectedId = null;
             state.editingId = null;
             saveNotes();
             renderNotes();
-            toast("已清空");
+            toast(t('toast.cleared'));
             notifySidepanel();
           }
           sendResponse({ success: true });
@@ -201,7 +224,7 @@ function init() {
               renderNotes();
             }
 
-            toast(`已导入 ${newNotes.length} 条备注`);
+            toast(t('toast.imported', { count: newNotes.length }));
             notifySidepanel();
           }
           sendResponse({ success: true });
@@ -739,19 +762,19 @@ function ensureOverlay() {
     <div id="noteLayer"></div>
     <div class="toast" id="toast"></div>
     <div class="toolbar" id="toolbar">
-      <button class="tool-btn" id="btnAnnotation" title="标注模式">
+      <button class="tool-btn" id="btnAnnotation" title="${t('toolbar.annotation')}">
         <svg viewBox="0 0 24 24">
           <path d="M12 20h9"></path>
           <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
         </svg>
       </button>
-      <button class="tool-btn" id="btnPreview" title="预览模式">
+      <button class="tool-btn" id="btnPreview" title="${t('toolbar.preview')}">
         <svg viewBox="0 0 24 24">
           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
           <circle cx="12" cy="12" r="3"></circle>
         </svg>
       </button>
-      <button class="panel-toggle" id="btnPanel" title="展开/收起侧边栏">
+      <button class="panel-toggle" id="btnPanel" title="${t('toolbar.panel')}">
         <svg viewBox="0 0 24 24">
           <circle cx="12" cy="5" r="1.5"></circle>
           <circle cx="12" cy="12" r="1.5"></circle>
@@ -970,17 +993,17 @@ function onSharedShortcut(event) {
     if (!isExtensionContextValid()) return;
     const shareUrl = result.contexaShareUrl;
     if (!shareUrl || !shareUrl.trim()) {
-      toast('请先在侧边栏配置云端 JSON URL');
+      toast(t('toast.noShareUrl'));
       return;
     }
     setMode('preview', true);
     loadSharedNotes(shareUrl.trim(), (res) => {
       if (!res || !res.success) {
-        toast('加载云端数据失败');
+        toast(t('toast.sharedFail'));
       } else if (res.count === 0) {
-        toast('当前网页无云端数据');
+        toast(t('toast.sharedEmpty'));
       } else {
-        toast('已开启云端模式');
+        toast(t('toast.sharedOn'));
       }
     });
   });
@@ -1053,14 +1076,14 @@ function onCaptureClick(event) {
   els.root.style.display = '';
 
   if (!pageElement || pageElement === document.documentElement || pageElement === document.body) {
-    toast("无法选择该元素");
+    toast(t('toast.cannotSelect'));
     return;
   }
 
   const selector = buildSelector(pageElement);
 
   if (!selector) {
-    toast("无法生成选择器");
+    toast(t('toast.noSelector'));
     return;
   }
 
@@ -1081,7 +1104,7 @@ function onCaptureClick(event) {
   state.selectedId = note.id;
   state.editingId = isNewNote ? note.id : null;
 
-  toast(`已添加备注: ${note.title}`);
+  toast(t('toast.added', { title: note.title }));
 
   renderNotes();
   saveNotes();
@@ -1096,7 +1119,7 @@ function saveNoteFromPopover(noteId, popover, options = {}) {
   const note = state.notes.find(item => item.id === noteId);
   if (!note) return;
 
-  note.title = popover.querySelector(".note-input").value.trim() || "未命名备注";
+  note.title = popover.querySelector(".note-input").value.trim() || t('note.untitled');
   note.text = popover.querySelector(".note-textarea").value.trim();
 
   // If description is empty, delete the note instead of keeping it
@@ -1115,7 +1138,7 @@ function saveNoteFromPopover(noteId, popover, options = {}) {
   saveNotes();
 
   if (!options.skipRender) renderNotes();
-  if (!options.silent) toast("备注已保存");
+  if (!options.silent) toast(t('toast.saved'));
 
   notifySidepanel();
 }
@@ -1139,7 +1162,7 @@ function deleteNote(noteId) {
   const note = state.notes.find(item => item.id === noteId);
   if (!note) return;
 
-  if (note.text.trim() && !confirm("确定删除这条备注吗？")) return;
+  if (note.text.trim() && !confirm(t('confirm.deleteNote'))) return;
 
   state.notes = state.notes.filter(item => item.id !== noteId);
   state.selectedId = null;
@@ -1147,7 +1170,7 @@ function deleteNote(noteId) {
 
   saveNotes();
   renderNotes();
-  toast("备注已删除");
+  toast(t('toast.deleted'));
 
   notifySidepanel();
 }
@@ -1221,7 +1244,7 @@ function renderNotes() {
     pin.classList.toggle("selected", isOpen);
     pin.setAttribute("aria-pressed", String(isOpen));
     pin.textContent = number;
-    pin.title = isOpen ? "隐藏备注" : (note.title || "显示备注");
+    pin.title = isOpen ? t('note.hide') : (note.title || t('note.show'));
 
     pin.style.left = `${clamp(rect.right - 12, 4, window.innerWidth - 32)}px`;
     pin.style.top = `${clamp(rect.top - 12, 4, window.innerHeight - 32)}px`;
@@ -1266,7 +1289,7 @@ function renderNotes() {
           <h3></h3>
           <p></p>
         `;
-        pop.querySelector("h3").textContent = note.title || "未命名备注";
+        pop.querySelector("h3").textContent = note.title || t('note.untitled');
         pop.querySelector("p").textContent = note.text || "";
 
         els.noteLayer.appendChild(pop);
@@ -1297,10 +1320,10 @@ function renderNotes() {
         const pop = document.createElement("article");
         pop.className = "note-pop editing";
         pop.innerHTML = `
-          <input class="note-input" placeholder="标题">
-          <textarea class="note-textarea" placeholder="输入备注内容..."></textarea>
+          <input class="note-input" placeholder="${t('editor.titlePlaceholder')}">
+          <textarea class="note-textarea" placeholder="${t('editor.bodyPlaceholder')}"></textarea>
           <div class="note-actions">
-            <button class="icon-btn danger delete-note" title="删除">
+            <button class="icon-btn danger delete-note" title="${t('editor.delete')}">
               <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M3 6h18"></path>
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -1309,7 +1332,7 @@ function renderNotes() {
                 <path d="M14 11v6"></path>
               </svg>
             </button>
-            <button class="icon-btn save-note" title="保存">
+            <button class="icon-btn save-note" title="${t('editor.save')}">
               <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"></polyline>
               </svg>
@@ -1522,7 +1545,7 @@ function siblingIndex(element) {
 function labelFromElement(element) {
   const text = (element.innerText || element.textContent || "").trim().replace(/\s+/g, " ");
   if (text) return text.slice(0, 24);
-  return `${element.tagName.toLowerCase()} 备注`;
+  return t('note.defaultTitle', { tag: element.tagName.toLowerCase() });
 }
 
 function isElementVisible(element) {
@@ -1679,7 +1702,7 @@ function loadSharedNotes(url, callback, options = {}) {
     payload: { url }
   }, (response) => {
     if (!response || !response.success) {
-      if (!silent) toast(`加载云端数据失败: ${response?.error || '未知错误'}`);
+      if (!silent) toast(t('toast.sharedFailWith', { err: response?.error || '' }));
       if (callback) callback({ success: false, error: response?.error });
       return;
     }
@@ -1709,7 +1732,7 @@ function loadSharedNotes(url, callback, options = {}) {
       });
       notes = matchedPage?.notes || [];
     } else {
-      if (!silent) toast('云端数据格式错误');
+      if (!silent) toast(t('toast.sharedFormatErr'));
       if (callback) callback({ success: false, error: 'Invalid data format' });
       return;
     }

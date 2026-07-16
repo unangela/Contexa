@@ -1,3 +1,6 @@
+// i18n（i18n.js 已在 sidepanel.js 之前引入）
+const t = (typeof i18n !== 'undefined') ? i18n.t : (k, v) => k;
+
 const els = {
   iconBtns: Array.from(document.querySelectorAll('.icon-btn')),
   themeDropdown: document.getElementById('themeDropdown'),
@@ -20,7 +23,9 @@ const els = {
   grantBox: document.getElementById("grantBox"),
   grantHostname: document.getElementById("grantHostname"),
   grantBtn: document.getElementById("grantBtn"),
-  grantedDomainList: document.getElementById("grantedDomainList")
+  grantedDomainList: document.getElementById("grantedDomainList"),
+  langToggle: document.getElementById("langToggle"),
+  langLabel: document.getElementById("langLabel")
 };
 
 // 当前页面授权状态：'unknown' | 'not-needed' | 'granted' | 'pending'
@@ -44,6 +49,47 @@ let activeTabId = null;
 let extensionSupported = false;
 let currentTheme = 'minimal';
 
+// 应用当前语言到所有标记了 data-i18n 的元素
+function applyI18n() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    el.title = t(el.dataset.i18nTitle);
+  });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+    el.placeholder = t(el.dataset.i18nPh);
+  });
+  // 更新语言切换按钮显示（显示"另一种语言"的缩写）
+  if (els.langLabel) {
+    els.langLabel.textContent = i18n.getLang() === 'zh' ? 'EN' : '中';
+  }
+  // 刷新动态文案（modeHint 当前态、grant 按钮等）
+  if (typeof modeHints !== 'undefined' && currentState.mode) {
+    const m = currentState.mode === 'preview' && currentState.readOnly ? 'shared' : currentState.mode;
+    if (modeHints[m]) els.modeHint.textContent = modeHints[m];
+  }
+  // 域名管理列表是动态生成的（非 data-i18n），语言切换后需重新渲染
+  if (typeof renderGrantedDomainList !== 'undefined') {
+    renderGrantedDomainList();
+  }
+}
+
+// 切换语言并刷新所有文案 + 通知 content/background
+function toggleLang() {
+  const next = i18n.getLang() === 'zh' ? 'en' : 'zh';
+  i18n.setLang(next, () => {
+    applyI18n();
+    // 通知 content script 同步语言（重新渲染 toolbar/pin title 等）
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (!tabs[0]) return;
+      chrome.tabs.sendMessage(tabs[0].id, { type: 'setLang', payload: { lang: next } }, () => {
+        if (chrome.runtime.lastError) { /* content 不在则忽略 */ }
+      });
+    });
+  });
+}
+
 function init() {
   els.iconBtns.forEach(btn => {
     btn.addEventListener("click", () => onModeSelect(btn.dataset.mode));
@@ -51,6 +97,7 @@ function init() {
   els.themeItems.forEach(item => {
     item.addEventListener("click", () => setTheme(item.dataset.theme));
   });
+  els.langToggle.addEventListener("click", toggleLang);
   els.importJson.addEventListener("change", importJson);
   els.saveShareUrl.addEventListener("click", saveShareUrl);
   els.clearShareUrl.addEventListener("click", clearShareUrl);
@@ -130,7 +177,10 @@ function init() {
 
   requestState();
   loadTheme();
-  renderGrantedDomainList();
+
+  // 初始化语言并应用文案（首次根据浏览器语言或用户历史选择）
+  // 域名列表等动态文案在 applyI18n 内部渲染，须等语言就绪
+  i18n.init(() => applyI18n());
 }
 
 // 判定当前页面是否需要/已通过域名授权
@@ -248,7 +298,7 @@ function showGrantPrompt(hostname) {
   els.modeHint.hidden = true;
   els.grantBox.hidden = false;
   els.grantHostname.textContent = hostname;
-  els.grantBtn.textContent = `授权访问 ${hostname}`;
+  els.grantBtn.textContent = t('grant.btnWithHost', { host: hostname });
   extensionSupported = false;
   currentState.mode = null;
   currentState.readOnly = false;
@@ -364,7 +414,7 @@ function renderNoteList(notes) {
 
     const text = document.createElement('div');
     text.className = 'note-text';
-    text.textContent = note.title || '(未命名备注)';
+    text.textContent = note.title || t('note.untitledParen');
 
     item.appendChild(badge);
     item.appendChild(text);
@@ -377,7 +427,7 @@ function renderNoteList(notes) {
           payload: { id: note.id }
         }, () => {
           if (chrome.runtime.lastError) {
-            toast("当前页面不支持操作");
+            toast(t('toast.unsupportedOp'));
           }
         });
       });
@@ -452,7 +502,7 @@ function reorderNotes(srcId, targetId, insertBefore) {
       payload: { orderedIds }
     }, () => {
       if (chrome.runtime.lastError) {
-        toast("当前页面不支持操作");
+        toast(t('toast.unsupportedOp'));
       }
     });
   });
@@ -463,22 +513,22 @@ function reorderNotes(srcId, targetId, insertBefore) {
 function onGrantClick() {
   const hostname = currentHostname;
   if (!hostname) {
-    toast("无法确定当前域名");
+    toast(t('toast.noHostname'));
     return;
   }
   const origin = `*://${hostname}/*`;
   els.grantBtn.disabled = true;
-  els.grantBtn.textContent = '等待授权…';
+  els.grantBtn.textContent = t('grant.waiting');
 
   chrome.permissions.request({ origins: [origin] }, (granted) => {
     if (chrome.runtime.lastError) {
       resetGrantBtn(hostname);
-      toast("授权请求失败");
+      toast(t('toast.grantFail'));
       return;
     }
     if (!granted) {
       resetGrantBtn(hostname);
-      toast("已取消授权");
+      toast(t('toast.grantCancelled'));
       return;
     }
     // 权限已授予，通知 background 注册 content script（带 tabId 用于立即注入当前页）
@@ -487,7 +537,7 @@ function onGrantClick() {
       (res) => {
         resetGrantBtn(hostname);
         if (!res || !res.success) {
-          toast("注册失败，请重试");
+          toast(t('toast.registerFail'));
           return;
         }
         domainGrantState = 'granted';
@@ -495,7 +545,7 @@ function onGrantClick() {
         renderGrantedDomainList();
         // content script 注入需要一点时间，轮询 getState 直至就绪
         waitForContentReady(activeTabId, 5, 300, () => {
-          toast("已授权，可以开始标注了");
+          toast(t('toast.granted'));
         });
       }
     );
@@ -504,29 +554,29 @@ function onGrantClick() {
 
 function resetGrantBtn(hostname) {
   els.grantBtn.disabled = false;
-  els.grantBtn.textContent = `授权访问 ${hostname}`;
+  els.grantBtn.textContent = t('grant.btnWithHost', { host: hostname });
 }
 
 // 由模式按钮触发的授权：授权成功后继续执行 pendingMode
 function requestGrantAndContinue(pendingMode) {
   const hostname = currentHostname;
   if (!hostname) {
-    toast("无法确定当前域名");
+    toast(t('toast.noHostname'));
     return;
   }
   const origin = `*://${hostname}/*`;
-  toast(`正在请求授权 ${hostname}…`);
+  toast(t('toast.requestingGrant', { host: hostname }));
 
   chrome.permissions.request({ origins: [origin] }, (granted) => {
     if (chrome.runtime.lastError || !granted) {
-      toast("已取消授权");
+      toast(t('toast.grantCancelled'));
       return;
     }
     chrome.runtime.sendMessage(
-      { type: 'grantDomain', payload: { hostname } },
+      { type: 'grantDomain', payload: { hostname, tabId: activeTabId } },
       (res) => {
         if (!res || !res.success) {
-          toast("注册失败，请重试");
+          toast(t('toast.registerFail'));
           return;
         }
         domainGrantState = 'granted';
@@ -561,7 +611,7 @@ function waitForContentReady(tabId, retries, interval, onReady) {
         setTimeout(poll, interval);
       } else {
         // 超时：提示刷新（注入偶尔需要页面刷新才生效）
-        toast("授权成功，请刷新页面以激活");
+        toast(t('toast.refreshToActivate'));
       }
     });
   };
@@ -578,7 +628,7 @@ function renderGrantedDomainList() {
     if (hostnames.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'granted-domain-empty';
-      empty.textContent = '尚未授权任何网站';
+      empty.textContent = t('domain.empty');
       els.grantedDomainList.appendChild(empty);
       return;
     }
@@ -597,7 +647,7 @@ function renderGrantedDomainList() {
 
       const revoke = document.createElement('button');
       revoke.className = 'gd-revoke';
-      revoke.textContent = '取消授权';
+      revoke.textContent = t('domain.revoke');
       revoke.addEventListener('click', () => onRevokeClick(hostname, revoke));
 
       item.appendChild(check);
@@ -609,20 +659,20 @@ function renderGrantedDomainList() {
 }
 
 function onRevokeClick(hostname, btn) {
-  if (!confirm(`确定取消对 ${hostname} 的授权吗？\n取消后该网站不再自动标注（标注数据保留）。`)) return;
+  if (!confirm(t('domain.confirmRevoke', { host: hostname }))) return;
   btn.disabled = true;
-  btn.textContent = '处理中…';
+  btn.textContent = t('domain.processing');
   chrome.runtime.sendMessage(
     { type: 'revokeDomain', payload: { hostname } },
     (res) => {
       if (!res || !res.success) {
         btn.disabled = false;
-        btn.textContent = '取消授权';
-        toast("取消授权失败");
+        btn.textContent = t('domain.revoke');
+        toast(t('toast.revokeFail'));
         return;
       }
       renderGrantedDomainList();
-      toast(`已取消授权 ${hostname}`);
+      toast(t('toast.revoked', { host: hostname }));
       // 若撤销的正是当前页面域名，刷新侧边栏为未授权态
       if (hostname === currentHostname && domainGrantState === 'granted') {
         domainGrantState = 'pending';
@@ -647,11 +697,11 @@ function onModeSelect(mode) {
     chrome.storage.local.get(['contexaShareUrl'], (result) => {
       const shareUrl = result.contexaShareUrl;
       if (!shareUrl || !shareUrl.trim()) {
-        toast("请先设置云端 JSON URL");
+        toast(t('toast.noShareUrl'));
         return;
       }
       if (!extensionSupported) {
-        toast("当前页面不支持标注");
+        toast(t('toast.unsupported'));
         return;
       }
 
@@ -673,7 +723,7 @@ function onModeSelect(mode) {
           payload: { mode: 'preview', readOnly: true, shareUrl: shareUrl.trim() }
         }, (response) => {
           if (chrome.runtime.lastError || !response || !response.success) {
-            toast("加载云端数据失败");
+            toast(t('toast.sharedFail'));
             currentState.readOnly = false;
             updateActiveButton('preview', false);
             renderNoteList(currentState.notes);
@@ -681,21 +731,21 @@ function onModeSelect(mode) {
           }
           const shared = response.shared;
           if (!shared || !shared.success) {
-            toast("加载云端数据失败");
+            toast(t('toast.sharedFail'));
             currentState.readOnly = false;
             updateActiveButton('preview', false);
             renderNoteList(currentState.notes);
           } else if (shared.count === 0) {
-            toast("当前网页无云端数据");
+            toast(t('toast.sharedEmpty'));
           } else {
-            toast("已开启云端模式");
+            toast(t('toast.sharedOn'));
           }
         });
       });
     });
   } else {
     if (!extensionSupported) {
-      toast("当前页面不支持标注");
+      toast(t('toast.unsupported'));
       return;
     }
 
@@ -709,12 +759,12 @@ function onModeSelect(mode) {
     if (currentState.readOnly) {
       setReadOnly(false, null, () => {
         setMode(mode, () => {
-          toast(mode === 'annotation' ? "已开启标注模式" : "已开启预览模式");
+          toast(mode === 'annotation' ? t('toast.annotationOn') : t('toast.previewOn'));
         });
       });
     } else {
       setMode(mode, () => {
-        toast(mode === 'annotation' ? "已开启标注模式" : "已开启预览模式");
+        toast(mode === 'annotation' ? t('toast.annotationOn') : t('toast.previewOn'));
       });
     }
   }
@@ -735,7 +785,7 @@ function setReadOnly(enabled, onError, onSuccess) {
         currentState.readOnly = !enabled;
         updateActiveButton(currentState.mode, !enabled);
         renderNoteList(currentState.notes);
-        toast("当前页面不支持操作");
+        toast(t('toast.unsupportedOp'));
         if (onError) onError();
         return;
       }
@@ -753,7 +803,7 @@ function setMode(mode, callback) {
       payload: { mode }
     }, () => {
       if (chrome.runtime.lastError) {
-        toast("当前页面不支持标注");
+        toast(t('toast.unsupported'));
         currentState.mode = null;
         updateActiveButton(null, false);
         return;
@@ -786,23 +836,23 @@ function updateActiveButton(mode, readOnly) {
 }
 
 const modeHints = {
-  annotation: '📝 点击页面元素可添加标注，此时不可以操作网页',
-  preview: '👁️ 可以操作网页，点击已有标注可以编辑',
-  shared: '☁️ 已从云端加载备注，数据只读不可编辑'
+  annotation: () => t('hint.annotation'),
+  preview: () => t('hint.preview'),
+  shared: () => t('hint.shared')
 };
 
 function updateModeHint(activeMode) {
   if (!els.modeHint) return;
   if (activeMode && modeHints[activeMode]) {
-    els.modeHint.textContent = modeHints[activeMode];
+    els.modeHint.textContent = modeHints[activeMode]();
   } else {
-    els.modeHint.textContent = '💡 选中标注模式，点击页面中的元素即可添加标注';
+    els.modeHint.textContent = t('hint.default');
   }
 }
 
 function cycleMode() {
   if (!extensionSupported) {
-    toast("当前页面不支持标注");
+    toast(t('toast.unsupported'));
     return;
   }
 
@@ -821,7 +871,7 @@ function cycleMode() {
 // Ctrl/Cmd+0：云端模式 → 关闭已打开备注；非云端 → 进入云端模式
 function onCtrlZero() {
   if (!extensionSupported) {
-    toast("当前页面不支持标注");
+    toast(t('toast.unsupported'));
     return;
   }
   const isShared = currentState.mode === 'preview' && currentState.readOnly;
@@ -831,7 +881,7 @@ function onCtrlZero() {
       if (!tabs[0]) return;
       chrome.tabs.sendMessage(tabs[0].id, { type: 'closeAllNotes' }, () => {
         if (chrome.runtime.lastError) {
-          toast("当前页面不支持操作");
+          toast(t('toast.unsupportedOp'));
         }
       });
     });
@@ -844,19 +894,19 @@ function onCtrlZero() {
 function saveShareUrl() {
   const url = els.shareUrl.value.trim();
   if (!url) {
-    toast("请输入有效的云端 URL");
+    toast(t('toast.urlInvalid'));
     return;
   }
 
   chrome.storage.local.set({ contexaShareUrl: url }, () => {
-    toast("云端 URL 已保存");
+    toast(t('toast.urlSaved'));
   });
 }
 
 function clearShareUrl() {
   els.shareUrl.value = '';
   chrome.storage.local.remove('contexaShareUrl', () => {
-    toast("已清空云端 URL");
+    toast(t('toast.urlCleared'));
   });
 }
 
@@ -966,7 +1016,7 @@ function timestamp() {
 function exportPage() {
   sendToActiveTab({ type: "exportJson" }, (response) => {
     if (!response || !response.data) {
-      toast("当前页面不支持操作");
+      toast(t('toast.unsupportedOp'));
       return;
     }
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -975,7 +1025,7 @@ function exportPage() {
         title = tabs[0].title.replace(/[\\/:*?"<>|]/g, '').trim() || 'untitled';
       }
       downloadJson(response.data, `${title}_${timestamp()}.json`);
-      toast("JSON 已导出");
+      toast(t('toast.exported'));
     });
   });
 }
@@ -992,16 +1042,16 @@ function exportAll() {
       }
     }
     if (pages.length === 0) {
-      toast("没有可导出的数据");
-      return;
-    }
-    const exportData = {
-      version: "0.3.0",
-      exportedAt: new Date().toISOString(),
-      pages
-    };
-    downloadJson(exportData, `share_${timestamp()}.json`);
-    toast(`已导出 ${pages.length} 个页面的数据`);
+        toast(t('toast.noExportData'));
+        return;
+      }
+      const exportData = {
+        version: "0.3.0",
+        exportedAt: new Date().toISOString(),
+        pages
+      };
+      downloadJson(exportData, `share_${timestamp()}.json`);
+      toast(t('toast.exportAll', { count: pages.length }));
   });
 }
 
@@ -1024,13 +1074,13 @@ function importJson(event) {
       }
 
       if (pages.length === 0) {
-        toast("未找到有效的备注数据");
+        toast(t('toast.noImportData'));
         return;
       }
 
       importPages(pages);
     } catch (error) {
-      toast("导入失败，请检查 JSON 格式");
+      toast(t('toast.importFail'));
     }
   };
 
@@ -1041,7 +1091,7 @@ function importJson(event) {
 function importPages(pages) {
   getActiveTab((tab) => {
     if (!tab) {
-      toast("无法确定当前页面");
+      toast(t('toast.noTab'));
       return;
     }
 
@@ -1097,16 +1147,16 @@ function importPages(pages) {
     }
 
     Promise.all(tasks).then(() => {
-      toast(`已导入 ${pages.length} 个页面的数据`);
+      toast(t('toast.importedPages', { count: pages.length }));
     });
   });
 }
 
 // ---- Clear ----
 function clearPage() {
-  if (!confirm("确定清空当前页面的全部备注吗？")) return;
+  if (!confirm(t('confirm.clearPage'))) return;
   sendToActiveTab({ type: "clearAll" }, (response) => {
-    if (!response) toast("当前页面不支持操作");
+    if (!response) toast(t('toast.unsupportedOp'));
   });
 }
 
@@ -1116,12 +1166,12 @@ function clearAllData() {
       k.startsWith("domNotes_")
     );
     if (keysToRemove.length === 0) {
-      toast("没有可清空的数据");
+      toast(t('toast.noClearData'));
       return;
     }
     if (
       !confirm(
-        `确定清空全部数据吗？将删除 ${keysToRemove.length} 个页面的备注，此操作不可撤销。`
+        t('confirm.clearAll', { count: keysToRemove.length })
       )
     )
       return;
@@ -1129,7 +1179,7 @@ function clearAllData() {
     chrome.storage.local.remove(keysToRemove, () => {
       // Notify current page's content script to reload
       sendToActiveTab({ type: "reloadNotes" }, () => {});
-      toast("已清空全部数据");
+      toast(t('toast.clearedAll'));
     });
   });
 }
