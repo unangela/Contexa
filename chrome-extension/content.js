@@ -143,6 +143,15 @@ function init() {
           renderNotes();
           sendResponse({ success: true });
           break;
+        case 'closeAllNotes':
+          // 云端模式下关闭所有已打开的备注（供侧边栏 Ctrl/Cmd+0 调用）
+          if (state.readOnly && state.openIds.length > 0) {
+            state.openIds = [];
+            renderNotes();
+            notifySidepanel();
+          }
+          sendResponse({ success: true });
+          break;
         case 'clearAll':
           if (confirm("确定清空当前页面的全部备注吗？")) {
             state.notes = [];
@@ -771,7 +780,7 @@ function ensureOverlay() {
   els.btnAnnotation.addEventListener('click', () => {
     if (state.mode === 'annotation') {
       // closing annotation → auto preview
-      setMode('preview');
+      return;
     } else {
       setMode('annotation');
     }
@@ -779,8 +788,8 @@ function ensureOverlay() {
 
   els.btnPreview.addEventListener('click', () => {
     if (state.mode === 'preview') {
-      // manually closing preview → both off
-      setMode(null);
+      // toggle between preview and annotation
+      return;
     } else {
       setMode('preview');
     }
@@ -938,17 +947,43 @@ function setMode(mode, readOnly) {
   }
 }
 
-// ---- Shared-mode close-all shortcut (Ctrl/Cmd+0) ----
+// ---- Ctrl/Cmd+0 shortcut ----
+// 云端模式：关闭所有已打开的备注
+// 非云端模式（标注/预览）：切换到云端模式
 function onSharedShortcut(event) {
   if (!isExtensionContextValid()) return;
-  if (!state.readOnly) return;
-  if ((event.ctrlKey || event.metaKey) && event.key === '0') {
+  if (!(event.ctrlKey || event.metaKey) || event.key !== '0') return;
+
+  if (state.readOnly) {
+    // 云端模式：关闭所有已打开的备注
     if (state.openIds.length === 0) return;
     event.preventDefault();
     state.openIds = [];
     renderNotes();
     notifySidepanel();
+    return;
   }
+
+  // 非云端模式：读取 shareUrl 并切换到云端模式
+  event.preventDefault();
+  chrome.storage.local.get(['contexaShareUrl'], (result) => {
+    if (!isExtensionContextValid()) return;
+    const shareUrl = result.contexaShareUrl;
+    if (!shareUrl || !shareUrl.trim()) {
+      toast('请先在侧边栏配置云端 JSON URL');
+      return;
+    }
+    setMode('preview', true);
+    loadSharedNotes(shareUrl.trim(), (res) => {
+      if (!res || !res.success) {
+        toast('加载云端数据失败');
+      } else if (res.count === 0) {
+        toast('当前网页无云端数据');
+      } else {
+        toast('已开启云端模式');
+      }
+    });
+  });
 }
 
 // ---- Annotation-mode DOM selection listeners ----

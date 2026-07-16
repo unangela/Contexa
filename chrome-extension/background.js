@@ -1,6 +1,25 @@
 // Track panel visibility per window (声明提前，避免引用先于声明)
 const panelOpen = {};
 
+// 扩展 reload / 更新 / 浏览器重启后，registerContentScripts 的动态注册会丢失，
+// 但 chrome.permissions 的授权是持久化的。需在 onInstalled 时根据持久化的
+// 授权重新注册所有域名的 content script。
+function restoreRegisteredScripts() {
+  chrome.permissions.getAll(async (perms) => {
+    const hostnames = (perms.origins || [])
+      .map(hostnameFromOrigin)
+      .filter(h => h && !h.includes('*'));
+    // 并行重新注册
+    await Promise.all(hostnames.map(h => registerDomain(h).catch(() => {})));
+  });
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  restoreRegisteredScripts();
+});
+// 也覆盖 service worker 被唤醒、未触发 onInstalled 的情况（每次 SW 启动检查一次）
+restoreRegisteredScripts();
+
 chrome.action.onClicked.addListener((tab) => {
   chrome.sidePanel.open({
     windowId: tab.windowId
@@ -141,6 +160,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         sendResponse({ success: true });
       })
+      .catch(err => sendResponse({ success: false, error: err && err.message }));
+    return true; // 异步响应
+  }
+
+  // 对当前标签页补注入 content script（用于"已授权但脚本未注入"的恢复场景，
+  // 如扩展 reload 后注册丢失、当前页是 reload 前已打开的标签页）
+  if (message.type === 'injectCurrentTab') {
+    const tabId = message.payload && message.payload.tabId;
+    if (typeof tabId !== 'number') {
+      sendResponse({ success: false, error: '缺少 tabId' });
+      return false;
+    }
+    chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['content.js']
+    })
+      .then(() => sendResponse({ success: true }))
       .catch(err => sendResponse({ success: false, error: err && err.message }));
     return true; // 异步响应
   }

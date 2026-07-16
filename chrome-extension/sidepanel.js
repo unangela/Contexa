@@ -106,6 +106,11 @@ function init() {
       e.preventDefault();
       cycleMode();
     }
+    // Ctrl/Cmd+0：云端模式 → 关闭已打开备注；非云端 → 进入云端模式
+    if ((e.metaKey || e.ctrlKey) && e.key === '0') {
+      e.preventDefault();
+      onCtrlZero();
+    }
   });
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -163,7 +168,7 @@ function requestState() {
         (res) => {
           if (res && res.granted) {
             domainGrantState = 'granted';
-            queryContentState(tabs[0].id);
+            queryContentState(tabs[0].id, true);
           } else {
             // 未授权：显示引导态，不发 getState
             domainGrantState = 'pending';
@@ -177,15 +182,23 @@ function requestState() {
     // file:// / chrome:// 等：走原有流程（content script 静态注入或不支持）
     domainGrantState = 'not-needed';
     hideGrantPrompt();
-    queryContentState(tabs[0].id);
+    queryContentState(tabs[0].id, false);
   });
 }
 
 // 原 getState 流程抽离（已授权或特殊页面调用）
-function queryContentState(tabId) {
+// granted=true 表示该域名已授权、期望脚本已注入；若 getState 失败则尝试补注入
+function queryContentState(tabId, granted) {
   chrome.tabs.sendMessage(tabId, { type: 'getState' }, (response) => {
     if (chrome.runtime.lastError) {
-      // Tab doesn't support the extension — reset UI and disable buttons
+      // getState 失败
+      if (granted) {
+        // 已授权但脚本未注入（如扩展 reload 后注册丢失、或当前页是 reload 前打开的标签页）
+        // 主动对当前页补注入，再轮询就绪
+        recoverInjectedTab(tabId);
+        return;
+      }
+      // 非授权页面（file/special）不支持 —— 显示不支持
       currentState.mode = null;
       currentState.readOnly = false;
       extensionSupported = false;
@@ -200,6 +213,25 @@ function queryContentState(tabId) {
       renderNoteList(response.notes || []);
     }
   });
+}
+
+// 已授权但脚本缺失时，对当前标签页补注入 content script，然后轮询就绪
+function recoverInjectedTab(tabId) {
+  chrome.runtime.sendMessage(
+    { type: 'injectCurrentTab', payload: { tabId } },
+    (res) => {
+      if (!res || !res.success) {
+        // 补注入失败（可能是受限页面），降级为不支持
+        currentState.mode = null;
+        currentState.readOnly = false;
+        extensionSupported = false;
+        updateActiveButton(null, false);
+        return;
+      }
+      // 补注入成功，轮询 content script 就绪
+      waitForContentReady(tabId, 5, 300, null);
+    }
+  );
 }
 
 function showUnsupportedPage() {
@@ -784,6 +816,29 @@ function cycleMode() {
   const nextMode = modes[nextIndex];
 
   onModeSelect(nextMode);
+}
+
+// Ctrl/Cmd+0：云端模式 → 关闭已打开备注；非云端 → 进入云端模式
+function onCtrlZero() {
+  if (!extensionSupported) {
+    toast("当前页面不支持标注");
+    return;
+  }
+  const isShared = currentState.mode === 'preview' && currentState.readOnly;
+  if (isShared) {
+    // 云端模式：发消息给 content 关闭所有已打开备注
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (!tabs[0]) return;
+      chrome.tabs.sendMessage(tabs[0].id, { type: 'closeAllNotes' }, () => {
+        if (chrome.runtime.lastError) {
+          toast("当前页面不支持操作");
+        }
+      });
+    });
+  } else {
+    // 非云端：进入云端模式（onModeSelect 会校验 shareUrl 并加载）
+    onModeSelect('shared');
+  }
 }
 
 function saveShareUrl() {
