@@ -296,6 +296,34 @@ html, body {
 }
 
 /* ---- Theme dropdown (header) ---- */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.lang-toggle {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg-secondary);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.lang-toggle:hover {
+  background: var(--bar-bg);
+  color: var(--fg);
+}
+
 .theme-dd {
   position: relative;
   flex-shrink: 0;
