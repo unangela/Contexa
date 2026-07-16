@@ -101,6 +101,12 @@
 
     <section class="panel">
       <div class="empty" id="modeHint">💡 选中标注模式，点击页面中的元素即可添加标注</div>
+      <div class="grant-box" id="grantBox" hidden>
+        <div class="grant-icon">🔒</div>
+        <p class="grant-text">Contexa 未获准访问当前网站</p>
+        <p class="grant-desc">授权 <strong id="grantHostname"></strong> 后即可标注</p>
+        <button class="btn primary grant-btn" id="grantBtn">授权访问</button>
+      </div>
     </section>
 
 
@@ -154,6 +160,11 @@
           <button class="btn" id="saveShareUrl">保存</button>
           <button class="btn" id="clearShareUrl">清空</button>
         </div>
+      </div>
+      <div class="help-item">
+        <p class="help-title">域名管理</p>
+        <p class="help-desc">已授权的网站可在任意页面自动标注</p>
+        <div id="grantedDomainList" class="granted-domain-list"></div>
       </div>
       <div class="help-item">
         <p class="help-title">本地文件使用</p>

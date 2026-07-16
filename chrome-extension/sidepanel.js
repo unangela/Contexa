@@ -16,8 +16,19 @@ const els = {
   shareUrl: document.getElementById("shareUrl"),
   saveShareUrl: document.getElementById("saveShareUrl"),
   clearShareUrl: document.getElementById("clearShareUrl"),
-  modeHint: document.getElementById("modeHint")
+  modeHint: document.getElementById("modeHint"),
+  grantBox: document.getElementById("grantBox"),
+  grantHostname: document.getElementById("grantHostname"),
+  grantBtn: document.getElementById("grantBtn"),
+  grantedDomainList: document.getElementById("grantedDomainList")
 };
+
+// 当前页面授权状态：'unknown' | 'not-needed' | 'granted' | 'pending'
+//   not-needed: file://、chrome:// 等不需要域名授权的页面（走原有流程）
+//   granted:   当前 http/https 域名已授权
+//   pending:   未授权，侧边栏显示引导
+let domainGrantState = 'unknown';
+let currentHostname = '';
 
 let currentState = {
   mode: null,
@@ -43,6 +54,7 @@ function init() {
   els.importJson.addEventListener("change", importJson);
   els.saveShareUrl.addEventListener("click", saveShareUrl);
   els.clearShareUrl.addEventListener("click", clearShareUrl);
+  els.grantBtn.addEventListener("click", onGrantClick);
 
   chrome.storage.local.get(['contexaShareUrl'], (result) => {
     if (result.contexaShareUrl) {
@@ -113,6 +125,20 @@ function init() {
 
   requestState();
   loadTheme();
+  renderGrantedDomainList();
+}
+
+// 判定当前页面是否需要/已通过域名授权
+// 返回 'http-granted' | 'http-pending' | 'special'（file/chrome 等走原流程）
+function classifyTab(url) {
+  let parsed;
+  try { parsed = new URL(url); } catch (e) { return 'special'; }
+  // http/https 才走域名授权；file、chrome、edge 等走原流程
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return 'special';
+  }
+  currentHostname = parsed.hostname;
+  return 'http';
 }
 
 function requestState() {
@@ -120,25 +146,86 @@ function requestState() {
     if (!tabs[0]) return;
 
     activeTabId = tabs[0].id;
+    const url = tabs[0].url || '';
 
-    chrome.tabs.sendMessage(tabs[0].id, { type: 'getState' }, (response) => {
-      if (chrome.runtime.lastError) {
-        // Tab doesn't support the extension — reset UI and disable buttons
-        currentState.mode = null;
-        currentState.readOnly = false;
-        extensionSupported = false;
-        updateActiveButton(null, false);
-        return;
-      }
-      extensionSupported = true;
-      if (response) {
-        currentState = { ...currentState, ...response };
-        const isShared = response.readOnly && response.mode === 'preview';
-        updateActiveButton(isShared ? 'shared' : response.mode, !!response.readOnly);
-        renderNoteList(response.notes || []);
-      }
-    });
+    // chrome:// 等无 url 或受限页面：直接标记不支持
+    if (!url) {
+      showUnsupportedPage();
+      return;
+    }
+
+    const tabKind = classifyTab(url);
+
+    if (tabKind === 'http') {
+      // http/https：先查域名是否已授权
+      chrome.runtime.sendMessage(
+        { type: 'checkDomainGranted', payload: { hostname: currentHostname } },
+        (res) => {
+          if (res && res.granted) {
+            domainGrantState = 'granted';
+            queryContentState(tabs[0].id);
+          } else {
+            // 未授权：显示引导态，不发 getState
+            domainGrantState = 'pending';
+            showGrantPrompt(currentHostname);
+          }
+        }
+      );
+      return;
+    }
+
+    // file:// / chrome:// 等：走原有流程（content script 静态注入或不支持）
+    domainGrantState = 'not-needed';
+    hideGrantPrompt();
+    queryContentState(tabs[0].id);
   });
+}
+
+// 原 getState 流程抽离（已授权或特殊页面调用）
+function queryContentState(tabId) {
+  chrome.tabs.sendMessage(tabId, { type: 'getState' }, (response) => {
+    if (chrome.runtime.lastError) {
+      // Tab doesn't support the extension — reset UI and disable buttons
+      currentState.mode = null;
+      currentState.readOnly = false;
+      extensionSupported = false;
+      updateActiveButton(null, false);
+      return;
+    }
+    extensionSupported = true;
+    if (response) {
+      currentState = { ...currentState, ...response };
+      const isShared = response.readOnly && response.mode === 'preview';
+      updateActiveButton(isShared ? 'shared' : response.mode, !!response.readOnly);
+      renderNoteList(response.notes || []);
+    }
+  });
+}
+
+function showUnsupportedPage() {
+  currentState.mode = null;
+  currentState.readOnly = false;
+  extensionSupported = false;
+  domainGrantState = 'unknown';
+  hideGrantPrompt();
+  updateActiveButton(null, false);
+}
+
+// 显示域名授权引导
+function showGrantPrompt(hostname) {
+  els.modeHint.hidden = true;
+  els.grantBox.hidden = false;
+  els.grantHostname.textContent = hostname;
+  els.grantBtn.textContent = `授权访问 ${hostname}`;
+  extensionSupported = false;
+  currentState.mode = null;
+  currentState.readOnly = false;
+  updateActiveButton(null, false);
+}
+
+function hideGrantPrompt() {
+  els.modeHint.hidden = false;
+  els.grantBox.hidden = true;
 }
 
 function updateState(state) {
@@ -339,8 +426,189 @@ function reorderNotes(srcId, targetId, insertBefore) {
   });
 }
 
+// ---- 域名授权 ----
+// 点击「授权访问」按钮（用户手势内）→ request 权限 → 注册注入 → 轮询就绪
+function onGrantClick() {
+  const hostname = currentHostname;
+  if (!hostname) {
+    toast("无法确定当前域名");
+    return;
+  }
+  const origin = `*://${hostname}/*`;
+  els.grantBtn.disabled = true;
+  els.grantBtn.textContent = '等待授权…';
+
+  chrome.permissions.request({ origins: [origin] }, (granted) => {
+    if (chrome.runtime.lastError) {
+      resetGrantBtn(hostname);
+      toast("授权请求失败");
+      return;
+    }
+    if (!granted) {
+      resetGrantBtn(hostname);
+      toast("已取消授权");
+      return;
+    }
+    // 权限已授予，通知 background 注册 content script（带 tabId 用于立即注入当前页）
+    chrome.runtime.sendMessage(
+      { type: 'grantDomain', payload: { hostname, tabId: activeTabId } },
+      (res) => {
+        resetGrantBtn(hostname);
+        if (!res || !res.success) {
+          toast("注册失败，请重试");
+          return;
+        }
+        domainGrantState = 'granted';
+        hideGrantPrompt();
+        renderGrantedDomainList();
+        // content script 注入需要一点时间，轮询 getState 直至就绪
+        waitForContentReady(activeTabId, 5, 300, () => {
+          toast("已授权，可以开始标注了");
+        });
+      }
+    );
+  });
+}
+
+function resetGrantBtn(hostname) {
+  els.grantBtn.disabled = false;
+  els.grantBtn.textContent = `授权访问 ${hostname}`;
+}
+
+// 由模式按钮触发的授权：授权成功后继续执行 pendingMode
+function requestGrantAndContinue(pendingMode) {
+  const hostname = currentHostname;
+  if (!hostname) {
+    toast("无法确定当前域名");
+    return;
+  }
+  const origin = `*://${hostname}/*`;
+  toast(`正在请求授权 ${hostname}…`);
+
+  chrome.permissions.request({ origins: [origin] }, (granted) => {
+    if (chrome.runtime.lastError || !granted) {
+      toast("已取消授权");
+      return;
+    }
+    chrome.runtime.sendMessage(
+      { type: 'grantDomain', payload: { hostname } },
+      (res) => {
+        if (!res || !res.success) {
+          toast("注册失败，请重试");
+          return;
+        }
+        domainGrantState = 'granted';
+        hideGrantPrompt();
+        renderGrantedDomainList();
+        // 轮询 content script 就绪后，再执行被拦截的模式切换
+        waitForContentReady(activeTabId, 5, 300, () => {
+          onModeSelect(pendingMode);
+        });
+      }
+    );
+  });
+}
+
+// 轮询 content script 是否就绪：最多 retries 次，每次间隔 interval ms
+function waitForContentReady(tabId, retries, interval, onReady) {
+  let attempt = 0;
+  const poll = () => {
+    attempt++;
+    chrome.tabs.sendMessage(tabId, { type: 'getState' }, (response) => {
+      if (!chrome.runtime.lastError && response) {
+        // 注入就绪
+        extensionSupported = true;
+        currentState = { ...currentState, ...response };
+        const isShared = response.readOnly && response.mode === 'preview';
+        updateActiveButton(isShared ? 'shared' : response.mode, !!response.readOnly);
+        renderNoteList(response.notes || []);
+        if (onReady) onReady();
+        return;
+      }
+      if (attempt < retries) {
+        setTimeout(poll, interval);
+      } else {
+        // 超时：提示刷新（注入偶尔需要页面刷新才生效）
+        toast("授权成功，请刷新页面以激活");
+      }
+    });
+  };
+  setTimeout(poll, interval);
+}
+
+// 渲染域名管理列表
+function renderGrantedDomainList() {
+  chrome.runtime.sendMessage({ type: 'listGrantedDomains' }, (res) => {
+    if (!res || !res.success) return;
+    const hostnames = res.hostnames || [];
+    els.grantedDomainList.innerHTML = '';
+
+    if (hostnames.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'granted-domain-empty';
+      empty.textContent = '尚未授权任何网站';
+      els.grantedDomainList.appendChild(empty);
+      return;
+    }
+
+    hostnames.forEach((hostname) => {
+      const item = document.createElement('div');
+      item.className = 'granted-domain-item';
+
+      const check = document.createElement('span');
+      check.className = 'gd-check';
+      check.textContent = '✓';
+
+      const name = document.createElement('span');
+      name.className = 'gd-name';
+      name.textContent = hostname;
+
+      const revoke = document.createElement('button');
+      revoke.className = 'gd-revoke';
+      revoke.textContent = '取消授权';
+      revoke.addEventListener('click', () => onRevokeClick(hostname, revoke));
+
+      item.appendChild(check);
+      item.appendChild(name);
+      item.appendChild(revoke);
+      els.grantedDomainList.appendChild(item);
+    });
+  });
+}
+
+function onRevokeClick(hostname, btn) {
+  if (!confirm(`确定取消对 ${hostname} 的授权吗？\n取消后该网站不再自动标注（标注数据保留）。`)) return;
+  btn.disabled = true;
+  btn.textContent = '处理中…';
+  chrome.runtime.sendMessage(
+    { type: 'revokeDomain', payload: { hostname } },
+    (res) => {
+      if (!res || !res.success) {
+        btn.disabled = false;
+        btn.textContent = '取消授权';
+        toast("取消授权失败");
+        return;
+      }
+      renderGrantedDomainList();
+      toast(`已取消授权 ${hostname}`);
+      // 若撤销的正是当前页面域名，刷新侧边栏为未授权态
+      if (hostname === currentHostname && domainGrantState === 'granted') {
+        domainGrantState = 'pending';
+        showGrantPrompt(currentHostname);
+      }
+    }
+  );
+}
+
 // ---- Mode switching (icon toolbar, three-way mutual exclusion) ----
 function onModeSelect(mode) {
+  // 域名授权拦截：http/https 未授权时，点任意模式都先触发授权，
+  // 授权成功后继续执行原本的模式切换（pendingMode 队列）。
+  if (domainGrantState === 'pending') {
+    requestGrantAndContinue(mode);
+    return;
+  }
+
   // For shared mode, check URL first regardless of extension support,
   // so users always get a clear prompt when URL is missing.
   if (mode === 'shared') {

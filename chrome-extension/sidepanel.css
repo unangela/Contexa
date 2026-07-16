@@ -745,3 +745,100 @@ input[type="file"] {
   padding: 0 12px;
   font-size: 12px;
 }
+
+/* ---- 未授权引导框 ---- */
+.grant-box {
+  padding: 16px;
+  text-align: center;
+  background: var(--bar-bg);
+  border: 1px solid var(--divider);
+  border-radius: 8px;
+}
+
+.grant-icon {
+  font-size: 22px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.grant-text {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.grant-desc {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--fg-secondary);
+  word-break: break-all;
+}
+
+.grant-btn {
+  width: 100%;
+}
+
+/* ---- 域名管理列表 ---- */
+.granted-domain-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.granted-domain-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--bar-bg);
+  border: 1px solid var(--divider);
+  border-radius: 6px;
+}
+
+.granted-domain-item .gd-check {
+  color: var(--active-bg);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.granted-domain-item .gd-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: var(--fg);
+}
+
+.granted-domain-item .gd-revoke {
+  flex-shrink: 0;
+  height: 24px;
+  padding: 0 8px;
+  font-size: 11px;
+  color: var(--danger);
+  background: transparent;
+  border: 1px solid var(--divider);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background .15s;
+}
+
+.granted-domain-item .gd-revoke:hover {
+  background: rgba(224,80,80,0.1);
+}
+
+.granted-domain-empty {
+  margin-top: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--fg-secondary);
+  background: var(--bar-bg);
+  border: 1px dashed var(--divider);
+  border-radius: 6px;
+  text-align: center;
+}

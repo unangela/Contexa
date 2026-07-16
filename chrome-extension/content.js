@@ -1,3 +1,9 @@
+// 整个 content script 包进 IIFE，使所有声明位于函数作用域内。
+// 这样动态注入(executeScript)二次执行本文件时不会因 const/let 重复声明报错；
+// 配合 __contexaInjected 守卫，只初始化一次。
+(() => {
+if (window.__contexaInjected) return;
+
 const state = {
   mode: null, // 'annotation' | 'preview' | null
   readOnly: false, // only meaningful in preview mode
@@ -59,6 +65,8 @@ function handleContextInvalidated() {
 
 function init() {
   if (!isExtensionContextValid()) return;
+  // 标记已注入，防止动态注入与静态注入重复初始化
+  window.__contexaInjected = true;
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!isExtensionContextValid()) {
@@ -1217,10 +1225,14 @@ function renderNotes() {
       if (state.readOnly) {
         const pop = document.createElement("article");
         pop.className = "note-pop readonly";
+        // 静态结构用 innerHTML（无插值）；note 数据来自云端 JSON，
+        // 必须用 textContent 防止 XSS（如 title 含 <img onerror=...>）。
         pop.innerHTML = `
-          <h3>${note.title || "未命名备注"}</h3>
-          <p>${note.text || ""}</p>
+          <h3></h3>
+          <p></p>
         `;
+        pop.querySelector("h3").textContent = note.title || "未命名备注";
+        pop.querySelector("p").textContent = note.text || "";
 
         els.noteLayer.appendChild(pop);
 
@@ -1758,8 +1770,11 @@ function toast(message) {
   toast.timer = setTimeout(() => els.toast.classList.remove("show"), 1600);
 }
 
+// __contexaInjected 守卫已在 IIFE 开头检查；这里只负责触发初始化。
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
 } else {
   init();
 }
+
+})(); // end IIFE

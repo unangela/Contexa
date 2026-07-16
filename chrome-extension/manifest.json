@@ -3,7 +3,8 @@
   "name": "Contexa",
   "version": "0.2.0",
   "description": "Design. Explain. Deliver.",
-  "permissions": ["activeTab", "sidePanel", "storage"],
+  "permissions": ["activeTab", "sidePanel", "storage", "scripting"],
+  "optional_host_permissions": ["*://*/*"],
   "action": {
     "default_title": "Contexa",
     "default_icon": {
@@ -20,7 +21,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>", "file://*/*"],
+      "matches": ["file:///*"],
       "js": ["content.js"],
       "run_at": "document_idle"
     }
