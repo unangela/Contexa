@@ -945,6 +945,10 @@ function setTheme(theme) {
         chrome.tabs.sendMessage(tabs[0].id, {
           type: 'setTheme',
           payload: { theme }
+        }, () => {
+          // 扩展重启后 content script 可能尚未注入；忽略接收端不存在的错误，
+          // 避免未捕获的 Promise 拒绝（主题已写入 storage，下次注入会读取）
+          if (chrome.runtime.lastError) { /* receiving end may not exist */ }
         });
       }
     });

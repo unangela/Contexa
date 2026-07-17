@@ -820,7 +820,10 @@ function ensureOverlay() {
 
   els.btnPanel.addEventListener('click', () => {
     if (!isExtensionContextValid()) return;
-    chrome.runtime.sendMessage({ type: 'togglePanel' });
+    chrome.runtime.sendMessage({ type: 'togglePanel' }, () => {
+      // 侧边栏可能未打开；忽略接收端不存在的错误，避免未捕获的 Promise 拒绝
+      if (chrome.runtime.lastError) { /* receiving end may not exist */ }
+    });
   });
 
   // Global shortcut: press Ctrl/Cmd + E to toggle annotation ↔ preview
