@@ -200,7 +200,7 @@ function init() {
           break;
         case 'exportJson':
           const exportData = {
-            version: "0.2.0",
+            version: "0.1.0",
             url: window.location.href,
             exportedAt: new Date().toISOString(),
             notes: state.notes

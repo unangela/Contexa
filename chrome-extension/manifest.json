@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Contexa",
-  "version": "0.2.0",
+  "version": "0.1.0",
   "description": "Design. Explain. Deliver.",
   "permissions": ["activeTab", "sidePanel", "storage", "scripting"],
   "optional_host_permissions": ["*://*/*"],
