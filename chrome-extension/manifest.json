@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Contexa",
   "version": "0.1.0",
-  "description": "Design. Explain. Deliver.",
+  "description": "免费轻量工具，可以在 HTML 页面快速添加 DOM 备注，导入导出简易协同，支持本地文件",
   "permissions": ["activeTab", "sidePanel", "storage", "scripting"],
   "optional_host_permissions": ["*://*/*"],
   "action": {
