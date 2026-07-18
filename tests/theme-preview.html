@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contexa theme preview</title>
+  <style>
+    html, body { margin: 0; min-height: 100%; background: #d7d7d2; }
+    body { display: grid; place-items: start center; padding: 24px; }
+    iframe { width: 380px; height: 760px; border: 0; box-shadow: 0 16px 48px rgba(0,0,0,.2); }
+  </style>
+</head>
+<body>
+  <iframe id="preview" src="/chrome-extension/sidepanel.html" title="Theme preview"></iframe>
+  <script>
+    const theme = new URLSearchParams(location.search).get('theme') || 'minimal';
+    const frame = document.getElementById('preview');
+
+    frame.addEventListener('load', () => {
+      const doc = frame.contentDocument;
+      doc.body.className = `theme-${theme}`;
+
+      const notes = doc.getElementById('noteList');
+      notes.hidden = false;
+      notes.innerHTML = `
+        <div class="note-item selected">
+          <span class="note-badge">1</span>
+          <div class="note-text">Checkout validation</div>
+        </div>
+        <div class="note-item">
+          <span class="note-badge">2</span>
+          <div class="note-text">Empty state behavior</div>
+        </div>`;
+      doc.getElementById('emptyState').hidden = true;
+      doc.getElementById('actionsRow').hidden = false;
+      doc.querySelector('[data-mode="preview"]').classList.add('active');
+    });
+  </script>
+</body>
+</html>

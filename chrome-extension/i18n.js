@@ -12,7 +12,7 @@
   const MESSAGES = {
     zh: {
       // —— 侧边栏 header / 模式按钮 ——
-      'brand.tagline': 'Design. Explain. Deliver.',
+      'brand.tagline': 'Point → Explain → Hand off',
       'mode.annotation': '标注',
       'mode.preview': '预览',
       'mode.shared': '云端',
@@ -139,7 +139,7 @@
 
     en: {
       // —— header / mode buttons ——
-      'brand.tagline': 'Design. Explain. Deliver.',
+      'brand.tagline': 'Point → Explain → Hand off',
       'mode.annotation': 'Annotate',
       'mode.preview': 'Preview',
       'mode.shared': 'Cloud',

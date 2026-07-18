@@ -1,0 +1,11 @@
+{
+  "name": "contexa",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "check": "node scripts/check.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "verify": "npm run check && npm test",
+    "package": "node scripts/package.mjs"
+  }
+}

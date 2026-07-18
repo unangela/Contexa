@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Contexa",
   "version": "0.1.0",
-  "description": "免费轻量工具，可以在 HTML 页面快速添加 DOM 备注，导入导出简易协同，支持本地文件",
+  "description": "网页上下文标注与交付工具，将说明精准绑定到页面元素，并以结构化数据交付给团队或 AI",
   "permissions": ["activeTab", "sidePanel", "storage", "scripting"],
   "optional_host_permissions": ["*://*/*"],
   "action": {
@@ -14,7 +14,8 @@
     }
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "side_panel": {
     "default_path": "sidepanel.html"
@@ -22,7 +23,7 @@
   "content_scripts": [
     {
       "matches": ["file:///*"],
-      "js": ["i18n.js", "content.js"],
+      "js": ["shared.js", "i18n.js", "content.js"],
       "run_at": "document_idle"
     }
   ],
@@ -30,11 +31,5 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  },
-  "web_accessible_resources": [
-    {
-      "resources": ["content.css"],
-      "matches": ["<all_urls>"]
-    }
-  ]
+  }
 }

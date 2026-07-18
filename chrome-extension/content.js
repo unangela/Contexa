@@ -87,6 +87,7 @@ function init() {
           const newReadOnly = message.payload.readOnly;
           if (newReadOnly && message.payload.shareUrl) {
             // Shared mode: set mode + load remote data in one atomic operation
+            ContexaShared.resetSharedNotes(state);
             setMode(newMode, newReadOnly);
             loadSharedNotes(message.payload.shareUrl, (result) => {
               sendResponse({ success: true, shared: result });
@@ -200,7 +201,8 @@ function init() {
           break;
         case 'exportJson':
           const exportData = {
-            version: "0.1.0",
+            version: ContexaShared.EXTENSION_VERSION,
+            schemaVersion: ContexaShared.DATA_SCHEMA_VERSION,
             url: window.location.href,
             exportedAt: new Date().toISOString(),
             notes: state.notes
@@ -238,24 +240,15 @@ function init() {
     }
   });
 
-  // Auto-activate on load with priority: remote (shared) > local (preview) > inactive
+  // Auto-activate cloud mode whenever a share URL is configured. Cloud mode never
+  // falls back to local notes, including when the request fails or has no page data.
   migrateLegacyStorage(() => {
     chrome.storage.local.get(['contexaShareUrl'], (result) => {
       const shareUrl = result.contexaShareUrl;
       if (shareUrl && shareUrl.trim()) {
-        // Try remote data first → shared mode
-        loadSharedNotes(shareUrl.trim(), (response) => {
-          if (response && response.success && state.notes.length > 0) {
-            setMode('preview', true);
-          } else {
-            // Remote failed or empty, fall back to local
-            loadNotes(() => {
-              if (state.notes.length > 0) {
-                setMode('preview');
-              }
-            });
-          }
-        }, { silent: true });
+        ContexaShared.resetSharedNotes(state);
+        setMode('preview', true);
+        loadSharedNotes(shareUrl.trim(), null, { silent: true });
       } else {
         // No share URL, try local data → preview mode
         loadNotes(() => {
@@ -293,10 +286,11 @@ function ensureOverlay() {
   --fg-secondary: #8c8c8c;
   --bar-bg: #f0f0f0;
   --active-bg: #2b2b2b;
-  --active-fg: #ffffff;
+  --active-fg: #f2f2ee;
   --divider: #e0e0e0;
   --danger: #a8514a;
-  --accent: #5b7cba;
+  --danger-fg: #fff2ee;
+  --accent: var(--active-bg);
   --shadow: 0 16px 44px rgba(0, 0, 0, .10);
 }
 
@@ -307,9 +301,10 @@ function ensureOverlay() {
   --fg-secondary: #8c8c8c;
   --bar-bg: #f0f0f0;
   --active-bg: #2b2b2b;
-  --active-fg: #ffffff;
+  --active-fg: #f2f2ee;
   --divider: #e0e0e0;
   --danger: #a8514a;
+  --danger-fg: #fff2ee;
   --shadow: 0 16px 44px rgba(0, 0, 0, .10);
 }
 
@@ -322,6 +317,7 @@ function ensureOverlay() {
   --active-fg: #f5efe3;
   --divider: #ddd2bf;
   --danger: #a05a4f;
+  --danger-fg: #fff1e7;
   --shadow: 0 16px 44px rgba(92, 80, 68, .12);
 }
 
@@ -331,9 +327,10 @@ function ensureOverlay() {
   --fg-secondary: #93a1a1;
   --bar-bg: #eee8d5;
   --active-bg: #268bd2;
-  --active-fg: #fdf6e3;
+  --active-fg: #001d26;
   --divider: #e1dcc8;
   --danger: #cb4b16;
+  --danger-fg: #fffdfa;
   --shadow: 0 16px 44px rgba(38, 139, 210, .10);
 }
 
@@ -343,9 +340,10 @@ function ensureOverlay() {
   --fg-secondary: #8c959f;
   --bar-bg: #eaeef2;
   --active-bg: #2da44e;
-  --active-fg: #ffffff;
+  --active-fg: #071b10;
   --divider: #d8dee4;
   --danger: #cf222e;
+  --danger-fg: #fff0f1;
   --shadow: 0 16px 44px rgba(36, 41, 47, .10);
 }
 
@@ -355,9 +353,10 @@ function ensureOverlay() {
   --fg-secondary: #7b8794;
   --bar-bg: #e4e9ef;
   --active-bg: #5e81ac;
-  --active-fg: #ffffff;
+  --active-fg: #07131d;
   --divider: #d1d8e0;
   --danger: #b54a4a;
+  --danger-fg: #fff1ef;
   --shadow: 0 16px 44px rgba(46, 52, 64, .10);
 }
 
@@ -367,9 +366,10 @@ function ensureOverlay() {
   --fg-secondary: #9893a5;
   --bar-bg: #f0e9e1;
   --active-bg: #907aa9;
-  --active-fg: #faf4ed;
+  --active-fg: #191724;
   --divider: #e8e0d7;
-  --danger: #b4637a;
+  --danger: #9e526b;
+  --danger-fg: #fff2f6;
   --shadow: 0 16px 44px rgba(87, 82, 121, .10);
 }
 
@@ -379,22 +379,24 @@ function ensureOverlay() {
   --fg-secondary: #928374;
   --bar-bg: #f2e5bc;
   --active-bg: #7c6f64;
-  --active-fg: #fbf1c7;
+  --active-fg: #fff8e5;
   --divider: #ebd9b0;
   --danger: #cc241d;
+  --danger-fg: #fff4db;
   --shadow: 0 16px 44px rgba(60, 56, 54, .10);
 }
 
 :host(.theme-ocean) {
-  --bg: #fafafa;
-  --fg: #37474f;
-  --fg-secondary: #90a4ae;
-  --bar-bg: #eceff1;
-  --active-bg: #4b6470;
-  --active-fg: #ffffff;
-  --divider: #d7dde0;
-  --danger: #a8514a;
-  --shadow: 0 16px 44px rgba(55, 71, 79, .10);
+  --bg: #1a1b26;
+  --fg: #c0caf5;
+  --fg-secondary: #7f849c;
+  --bar-bg: #16161e;
+  --active-bg: #7aa2f7;
+  --active-fg: #152238;
+  --divider: #2f3549;
+  --danger: #f7768e;
+  --danger-fg: #3a111c;
+  --shadow: 0 18px 48px rgba(5, 6, 12, .48);
 }
 
 :host(.theme-forest) {
@@ -403,22 +405,24 @@ function ensureOverlay() {
   --fg-secondary: #7d8a75;
   --bar-bg: #e8ece4;
   --active-bg: #4a6741;
-  --active-fg: #f3f5f1;
+  --active-fg: #eef3e7;
   --divider: #d4dcd0;
   --danger: #a05a4f;
+  --danger-fg: #f3f5e9;
   --shadow: 0 16px 44px rgba(47, 59, 44, .10);
 }
 
 :host(.theme-lavender) {
-  --bg: #f6f4fb;
-  --fg: #3b384f;
-  --fg-secondary: #8a85a3;
-  --bar-bg: #ece9f4;
-  --active-bg: #6b5b95;
-  --active-fg: #f6f4fb;
-  --divider: #ddd9eb;
-  --danger: #a8514a;
-  --shadow: 0 16px 44px rgba(59, 56, 79, .10);
+  --bg: #1e1e2e;
+  --fg: #cdd6f4;
+  --fg-secondary: #9399b2;
+  --bar-bg: #181825;
+  --active-bg: #cba6f7;
+  --active-fg: #2a1f3d;
+  --divider: #313244;
+  --danger: #f38ba8;
+  --danger-fg: #3b1724;
+  --shadow: 0 18px 48px rgba(10, 10, 20, .48);
 }
 
 :host(.theme-sunset) {
@@ -426,47 +430,51 @@ function ensureOverlay() {
   --fg: #5c6773;
   --fg-secondary: #9ba3ab;
   --bar-bg: #f0ede7;
-  --active-bg: #c4795f;
-  --active-fg: #faf8f5;
+  --active-bg: #df9a66;
+  --active-fg: #422315;
   --divider: #e0dbd3;
   --danger: #b3553e;
+  --danger-fg: #fff9f4;
   --shadow: 0 16px 44px rgba(92, 103, 115, .10);
 }
 
 :host(.theme-graphite) {
-  --bg: #f4f4f4;
-  --fg: #2d2d2d;
-  --fg-secondary: #888888;
-  --bar-bg: #e9e9e9;
-  --active-bg: #4a4a4a;
-  --active-fg: #ffffff;
-  --divider: #d6d6d6;
-  --danger: #a8514a;
-  --shadow: 0 16px 44px rgba(45, 45, 45, .10);
+  --bg: #191918;
+  --fg: #f0f0ec;
+  --fg-secondary: #9b9b95;
+  --bar-bg: #232321;
+  --active-bg: #9fc5b5;
+  --active-fg: #183027;
+  --divider: #383834;
+  --danger: #ef8b7d;
+  --danger-fg: #391913;
+  --shadow: 0 18px 48px rgba(0, 0, 0, .52);
 }
 
 :host(.theme-coral) {
-  --bg: #f8f5f3;
-  --fg: #423a36;
-  --fg-secondary: #968a82;
-  --bar-bg: #efeae6;
-  --active-bg: #a07a6a;
-  --active-fg: #f8f5f3;
-  --divider: #e0d8d2;
-  --danger: #a8514a;
-  --shadow: 0 16px 44px rgba(66, 58, 54, .10);
+  --bg: #1f1f28;
+  --fg: #dcd7ba;
+  --fg-secondary: #938aa9;
+  --bar-bg: #16161d;
+  --active-bg: #e6c384;
+  --active-fg: #34291d;
+  --divider: #363646;
+  --danger: #e46876;
+  --danger-fg: #35151c;
+  --shadow: 0 18px 48px rgba(8, 8, 14, .5);
 }
 
 :host(.theme-olive) {
-  --bg: #f6f6ee;
-  --fg: #38382e;
-  --fg-secondary: #8a8a72;
-  --bar-bg: #ececdc;
-  --active-bg: #6b6b48;
-  --active-fg: #f6f6ee;
-  --divider: #dadaCC;
-  --danger: #a8514a;
-  --shadow: 0 16px 44px rgba(56, 56, 46, .10);
+  --bg: #2d353b;
+  --fg: #d3c6aa;
+  --fg-secondary: #9da9a0;
+  --bar-bg: #232a2e;
+  --active-bg: #a7c080;
+  --active-fg: #25351e;
+  --divider: #475258;
+  --danger: #e67e80;
+  --danger-fg: #351719;
+  --shadow: 0 18px 48px rgba(12, 16, 18, .48);
 }
 
 :host(.theme-midnight) {
@@ -475,9 +483,10 @@ function ensureOverlay() {
   --fg-secondary: #5c6370;
   --bar-bg: #21252b;
   --active-bg: #4b5263;
-  --active-fg: #ffffff;
+  --active-fg: #edf1f7;
   --divider: #3b4048;
   --danger: #e06c75;
+  --danger-fg: #32141a;
   --shadow: 0 16px 44px rgba(0, 0, 0, .4);
 }
 
@@ -500,7 +509,7 @@ function ensureOverlay() {
   position: fixed;
   z-index: 2;
   border: 2px solid var(--accent);
-  background: rgba(45, 108, 223, .10);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
   border-radius: 5px;
   pointer-events: none;
   opacity: 0;
@@ -518,13 +527,13 @@ function ensureOverlay() {
   place-items: center;
   width: 21px;
   height: 21px;
-  color: #ffffffff;
+  color: var(--danger-fg);
   background: var(--danger);
   border: 1px solid #fff;
   border-radius: 999px;
   box-shadow: 0 3px 3px rgba(26, 26, 26, .24);
   font-size: 10px;
-  font-weight: 200;
+  font-weight: 700;
   pointer-events: auto;
   padding: 0;
   cursor: pointer;
@@ -535,7 +544,8 @@ function ensureOverlay() {
 }
 
 .pin.selected {
-  background: var(--fg-secondary);
+  color: var(--active-fg);
+  background: var(--active-bg);
   outline: 1px solid rgba(26,26,26,.22);
   outline-offset: 1px;
 }
@@ -573,6 +583,7 @@ function ensureOverlay() {
   margin: 0 0 5px;
   font-size: 13px;
   font-weight: 700;
+  color: var(--fg);
 }
 
 .note-pop p {
@@ -598,8 +609,8 @@ function ensureOverlay() {
   width: 100%;
   border: 1px solid var(--divider);
   outline: 0;
-  color: var(--active-bg);
-  background: rgba(255,255,255,.8);
+  color: var(--fg);
+  background: var(--bar-bg);
   border-radius: 5px;
   font-family: inherit;
   box-sizing: border-box;
@@ -635,7 +646,7 @@ function ensureOverlay() {
   width: 20px;
   height: 20px;
   padding: 0;
-  color: #fff;
+  color: var(--active-fg);
   background: var(--active-bg);
   border-radius: 999px;
   border: 1px solid rgba(0,0,0,.1);
@@ -654,10 +665,12 @@ function ensureOverlay() {
 }
 
 .icon-btn.danger {
+  color: var(--danger-fg);
   background: var(--danger);
 }
 
 .icon-btn.save-note {
+  color: #effff3;
   background: #1aa64b;
 }
 
@@ -691,7 +704,7 @@ function ensureOverlay() {
   display: flex;
   gap: 4px;
   padding: 4px;
-  background: rgba(255, 255, 255, .96);
+  background: var(--bg);
   border: 1px solid var(--divider);
   border-radius: 10px;
   box-shadow: 0 4px 16px rgba(26, 26, 26, .12);
@@ -718,7 +731,7 @@ function ensureOverlay() {
 
 .tool-btn.active {
   background: var(--active-bg);
-  color: #fff;
+  color: var(--active-fg);
 }
 
 .tool-btn svg {
@@ -841,7 +854,7 @@ function ensureOverlay() {
 
     if ((event.ctrlKey || event.metaKey) && (event.key === 'e' || event.key === 'E')) {
       event.preventDefault();
-      setMode(state.mode === 'annotation' ? 'preview' : 'annotation');
+      setMode(ContexaShared.getNextEditableMode(state.mode));
     }
 
     // Ctrl/Cmd + 0: close all open notes in shared mode
@@ -999,6 +1012,7 @@ function onSharedShortcut(event) {
       toast(t('toast.noShareUrl'));
       return;
     }
+    ContexaShared.resetSharedNotes(state);
     setMode('preview', true);
     loadSharedNotes(shareUrl.trim(), (res) => {
       if (!res || !res.success) {
@@ -1604,11 +1618,7 @@ function tryInjectObserver() {
 
 // ---- Storage ----
 function getStorageKey() {
-  const url = new URL(window.location.href);
-  if (url.protocol === 'file:') {
-    return 'domNotes_' + url.pathname;
-  }
-  return 'domNotes_' + url.hostname + url.pathname;
+  return ContexaShared.getStorageKeyForUrl(window.location.href);
 }
 
 // One-time migration: move legacy localStorage data (used by file:// pages
@@ -1618,7 +1628,7 @@ function migrateLegacyStorage(callback) {
     const legacyData = {};
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && key.startsWith('domNotes_')) {
+      if (key && key.startsWith(ContexaShared.LEGACY_STORAGE_PREFIX)) {
         const value = localStorage.getItem(key);
         try {
           const parsed = JSON.parse(value);
@@ -1633,7 +1643,7 @@ function migrateLegacyStorage(callback) {
 
     const keys = Object.keys(legacyData);
     if (keys.length === 0) {
-      if (callback) callback();
+      migrateChromeStorage(callback);
       return;
     }
 
@@ -1642,21 +1652,49 @@ function migrateLegacyStorage(callback) {
       const merged = { ...legacyData };
       for (const key of keys) {
         if (existing[key] && Array.isArray(existing[key].notes)) {
-          const existingIds = new Set(existing[key].notes.map(n => n.id));
-          merged[key].notes = existing[key].notes.concat(
-            legacyData[key].notes.filter(n => !existingIds.has(n.id))
+          merged[key].notes = ContexaShared.mergeNotesById(
+            existing[key].notes,
+            legacyData[key].notes
           );
         }
       }
       chrome.storage.local.set(merged, () => {
         // Clean up localStorage entries
         keys.forEach(k => localStorage.removeItem(k));
-        if (callback) callback();
+        migrateChromeStorage(callback);
       });
     });
   } catch (e) {
-    if (callback) callback();
+    migrateChromeStorage(callback);
   }
+}
+
+// Upgrade chrome.storage keys from hostname+pathname to origin+pathname.
+// The stored URL is authoritative because legacy keys did not retain protocol or port.
+function migrateChromeStorage(callback) {
+  chrome.storage.local.get(null, (allData) => {
+    if (chrome.runtime.lastError) {
+      if (callback) callback();
+      return;
+    }
+
+    const { updates, keysToRemove } = ContexaShared.buildStorageMigration(allData);
+
+    if (keysToRemove.length === 0) {
+      if (callback) callback();
+      return;
+    }
+
+    chrome.storage.local.set(updates, () => {
+      if (chrome.runtime.lastError) {
+        if (callback) callback();
+        return;
+      }
+      chrome.storage.local.remove(keysToRemove, () => {
+        if (callback) callback();
+      });
+    });
+  });
 }
 
 function loadNotes(callback) {
@@ -1705,6 +1743,11 @@ function loadSharedNotes(url, callback, options = {}) {
     payload: { url }
   }, (response) => {
     if (!response || !response.success) {
+      if (state.readOnly) {
+        ContexaShared.resetSharedNotes(state);
+        renderNotes();
+        notifySidepanel();
+      }
       if (!silent) toast(t('toast.sharedFailWith', { err: response?.error || '' }));
       if (callback) callback({ success: false, error: response?.error });
       return;
@@ -1735,6 +1778,11 @@ function loadSharedNotes(url, callback, options = {}) {
       });
       notes = matchedPage?.notes || [];
     } else {
+      if (state.readOnly) {
+        ContexaShared.resetSharedNotes(state);
+        renderNotes();
+        notifySidepanel();
+      }
       if (!silent) toast(t('toast.sharedFormatErr'));
       if (callback) callback({ success: false, error: 'Invalid data format' });
       return;
