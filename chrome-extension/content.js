@@ -167,10 +167,12 @@ function init() {
           renderNotes();
           sendResponse({ success: true });
           break;
-        case 'closeAllNotes':
-          // 云端模式下关闭所有已打开的备注（供侧边栏 Ctrl/Cmd+0 调用）
-          if (state.readOnly && state.openIds.length > 0) {
-            state.openIds = [];
+        case 'toggleAllNotes':
+          // 云端模式下切换所有备注展开状态（供侧边栏 Ctrl/Cmd+0 调用）
+          if (state.readOnly && state.notes.length > 0) {
+            state.openIds = state.openIds.length > 0
+              ? []
+              : state.notes.map(n => n.id);
             renderNotes();
             notifySidepanel();
           }
@@ -987,17 +989,19 @@ function setMode(mode, readOnly) {
 }
 
 // ---- Ctrl/Cmd+0 shortcut ----
-// 云端模式：关闭所有已打开的备注
+// 云端模式：切换所有备注的展开状态（有打开的则全部关闭，无打开的则全部展开）
 // 非云端模式（标注/预览）：切换到云端模式
 function onSharedShortcut(event) {
   if (!isExtensionContextValid()) return;
   if (!(event.ctrlKey || event.metaKey) || event.key !== '0') return;
 
   if (state.readOnly) {
-    // 云端模式：关闭所有已打开的备注
-    if (state.openIds.length === 0) return;
+    // 云端模式：有打开的备注 → 关闭全部；无打开的备注 → 展开全部
+    if (state.notes.length === 0) return;
     event.preventDefault();
-    state.openIds = [];
+    state.openIds = state.openIds.length > 0
+      ? []
+      : state.notes.map(n => n.id);
     renderNotes();
     notifySidepanel();
     return;

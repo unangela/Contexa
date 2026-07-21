@@ -860,10 +860,10 @@ function onCtrlZero() {
   }
   const isShared = currentState.mode === 'preview' && currentState.readOnly;
   if (isShared) {
-    // 云端模式：发消息给 content 关闭所有已打开备注
+    // 云端模式：发消息给 content 切换所有备注展开状态
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (!tabs[0]) return;
-      chrome.tabs.sendMessage(tabs[0].id, { type: 'closeAllNotes' }, () => {
+      chrome.tabs.sendMessage(tabs[0].id, { type: 'toggleAllNotes' }, () => {
         if (chrome.runtime.lastError) {
           toast(t('toast.unsupportedOp'));
         }
