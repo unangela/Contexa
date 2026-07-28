@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contexa — 隐私政策 / Privacy Policy</title>
+  <style>
+    body { font-family: -apple-system, "PingFang SC", "Segoe UI", sans-serif; background: #fafafa; color: #1a1a1a; line-height: 1.7; margin: 0; padding: 0; }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 48px 24px 80px; }
+    h1 { font-size: 30px; border-bottom: 1px solid #e6e6e6; padding-bottom: 14px; }
+    h2 { font-size: 20px; margin-top: 36px; }
+    p, li { color: #3a3a3a; font-size: 15px; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+    th, td { border: 1px solid #e6e6e6; padding: 10px 12px; text-align: left; }
+    th { background: #f0f0f0; }
+    code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+    hr { border: none; border-top: 1px solid #e6e6e6; margin: 40px 0; }
+    .back { display: inline-block; margin-bottom: 24px; color: #6b6b6b; text-decoration: none; font-size: 14px; }
+    a { color: #5b7cba; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../index.html">← <span>返回 Contexa</span></a>
+
+  <h1>隐私政策</h1>
+  <p><strong>最后更新：2025 年 7 月</strong></p>
+
+  <p>感谢您使用 Contexa（"本扩展"、"我们"）。我们高度重视您的隐私。本政策说明我们在您使用本 Chrome 扩展时，如何收集、使用和保护信息。</p>
+
+  <h2>1. 我们收集哪些信息</h2>
+  <p><strong>本扩展不收集任何个人身份信息，不要求注册账号，也不内置任何用户分析或追踪 SDK。</strong></p>
+  <table>
+    <tr><th>数据类型</th><th>是否收集</th><th>说明</th></tr>
+    <tr><td>标注内容（标题、描述、CSS 选择器）</td><td>仅存本地</td><td>保存在浏览器的 <code>chrome.storage.local</code> 中，不会上传到我们的服务器</td></tr>
+    <tr><td>云端 JSON URL</td><td>仅存本地</td><td>您主动配置的共享链接，保存在 <code>chrome.storage.local</code>，仅用于为您加载备注</td></tr>
+    <tr><td>浏览历史 / 访问的网页内容</td><td>不收集</td><td>本扩展不会读取、记录或传输您访问的页面内容</td></tr>
+    <tr><td>Cookie / 设备标识 / IP 地址</td><td>不收集</td><td>不使用任何 Cookie、设备指纹或广告技术</td></tr>
+  </table>
+
+  <h2>2. 数据存储位置</h2>
+  <ul>
+    <li><strong>标注数据</strong>：完全存储在您本地浏览器的 <code>chrome.storage.local</code> 中。卸载扩展将清除这些数据。</li>
+    <li><strong>云端共享数据</strong>：当您使用「云端模式」时，您需自行将导出的 JSON 文件上传到您选择的静态托管服务（如 GitHub Pages、Vercel、阿里云 OSS 等）。<strong>该托管服务由您控制，不受本政策约束</strong>，请参考相应服务的隐私政策。</li>
+  </ul>
+
+  <h2>3. 数据如何被使用</h2>
+  <ul>
+    <li>标注数据仅用于在您授权的网页上显示备注气泡。</li>
+    <li>云端 JSON URL 仅由您的浏览器向该地址发起请求以加载备注，请求通过浏览器扩展后台代理（用于规避跨域限制），<strong>不会经过我们的服务器</strong>。</li>
+  </ul>
+
+  <h2>4. 网络访问</h2>
+  <p>本扩展仅在以下情形发起网络请求：</p>
+  <ul>
+    <li><strong>加载云端备注</strong>：当您启用云端模式时，向<strong>您配置的</strong> JSON URL 发起请求。出于安全考虑，仅允许公网 <code>http/https</code> 地址，本地地址（<code>localhost</code>、<code>127.x</code>、内网 IP 段）会被拦截。</li>
+    <li>本扩展不与任何第三方分析、广告或追踪服务通信。</li>
+  </ul>
+
+  <h2>5. 权限说明</h2>
+  <p>本扩展采用「最小权限、按需授予」模型：</p>
+  <ul>
+    <li><strong>安装时</strong>：仅申请 <code>activeTab</code>、<code>sidePanel</code>、<code>storage</code>、<code>scripting</code> 权限，<strong>不预先索取任何网站的访问权限</strong>。</li>
+    <li><strong>使用时</strong>：当您在某网站首次标注时，Chrome 会弹出授权提示，<strong>明确显示具体子域名</strong>，由您主动决定是否授权。授权范围精确到子域名，可随时在「域名管理」中撤销。</li>
+  </ul>
+
+  <h2>6. 第三方服务</h2>
+  <p>本扩展本身不接入任何第三方服务。当您选择使用云端共享功能时，您自行选择的托管服务（GitHub、Vercel 等）可能有其独立的隐私政策。</p>
+
+  <h2>7. 儿童隐私</h2>
+  <p>本扩展是面向数字产品与网站交付场景的专业工具，不针对 13 岁以下儿童，也不会故意收集儿童信息。</p>
+
+  <h2>8. 政策变更</h2>
+  <p>我们可能更新本政策。重大变更将在本页面公布并更新「最后更新」日期。</p>
+
+  <h2>9. 联系我们</h2>
+  <p>如对本政策有疑问，请通过 <a href="https://github.com/unangela/Contexa/issues">GitHub Issues</a> 联系。</p>
+
+  <hr>
+
+  <h1>Privacy Policy</h1>
+  <p><strong>Last updated: July 2025</strong></p>
+
+  <p>Thank you for using Contexa (the "Extension", "we"). We take your privacy seriously. This policy explains what information we collect, how we use it, and how we protect it when you use this Chrome extension.</p>
+
+  <h2>1. Information We Collect</h2>
+  <p><strong>The Extension does not collect any personally identifiable information, does not require account registration, and contains no analytics or tracking SDKs.</strong></p>
+  <table>
+    <tr><th>Data Type</th><th>Collected?</th><th>Notes</th></tr>
+    <tr><td>Annotation content (title, description, CSS selectors)</td><td>Local only</td><td>Stored in your browser's <code>chrome.storage.local</code>; never uploaded to our servers</td></tr>
+    <tr><td>Cloud JSON URL</td><td>Local only</td><td>The share link you configure, stored in <code>chrome.storage.local</code>, used only to load your notes</td></tr>
+    <tr><td>Browsing history / page content you visit</td><td>Not collected</td><td>The Extension does not read, log, or transmit the content of pages you visit</td></tr>
+    <tr><td>Cookies / device IDs / IP addresses</td><td>Not collected</td><td>No cookies, device fingerprints, or advertising technologies are used</td></tr>
+  </table>
+
+  <h2>2. Where Data Is Stored</h2>
+  <ul>
+    <li><strong>Annotation data</strong>: Stored entirely in your browser's <code>chrome.storage.local</code>. Uninstalling the extension removes this data.</li>
+    <li><strong>Cloud-shared data</strong>: When you use "Cloud mode", you upload the exported JSON file to a static hosting service of your choice (e.g., GitHub Pages, Vercel, Alibaba Cloud OSS). <strong>That hosting service is under your control and is not governed by this policy</strong> — please refer to its respective privacy policy.</li>
+  </ul>
+
+  <h2>3. How Data Is Used</h2>
+  <ul>
+    <li>Annotation data is used solely to display note bubbles on websites you have authorized.</li>
+    <li>The cloud JSON URL is used only by your browser to fetch notes from that address. The request is proxied through the extension's background script (to bypass cross-origin restrictions) and <strong>never passes through our servers</strong>.</li>
+  </ul>
+
+  <h2>4. Network Access</h2>
+  <p>The Extension makes network requests only in the following case:</p>
+  <ul>
+    <li><strong>Loading cloud notes</strong>: When you enable Cloud mode, it requests the JSON URL <strong>you configured</strong>. For security, only public <code>http/https</code> addresses are allowed; local addresses (<code>localhost</code>, <code>127.x</code>, private IP ranges) are blocked.</li>
+    <li>The Extension does not communicate with any third-party analytics, advertising, or tracking services.</li>
+  </ul>
+
+  <h2>5. Permissions</h2>
+  <p>The Extension follows a "least privilege, on-demand grant" model:</p>
+  <ul>
+    <li><strong>At install</strong>: Requests only <code>activeTab</code>, <code>sidePanel</code>, <code>storage</code>, and <code>scripting</code> permissions — <strong>it does not pre-claim access to any website</strong>.</li>
+    <li><strong>In use</strong>: When you annotate a website for the first time, Chrome shows a permission prompt that <strong>clearly displays the specific subdomain</strong>, and you decide whether to grant it. Grants are scoped to exact subdomains and can be revoked anytime in "Domain Management".</li>
+  </ul>
+
+  <h2>6. Third-Party Services</h2>
+  <p>The Extension itself integrates no third-party services. When you choose to use the cloud-sharing feature, the hosting service you select (GitHub, Vercel, etc.) may have its own privacy policy.</p>
+
+  <h2>7. Children's Privacy</h2>
+  <p>The Extension is a professional tool for digital product and website delivery workflows. It is not directed at children under 13 and does not knowingly collect information from them.</p>
+
+  <h2>8. Changes to This Policy</h2>
+  <p>We may update this policy. Material changes will be posted on this page with an updated "Last updated" date.</p>
+
+  <h2>9. Contact Us</h2>
+  <p>For questions about this policy, please reach out via <a href="https://github.com/unangela/Contexa/issues">GitHub Issues</a>.</p>
+</div>
+</body>
+</html>

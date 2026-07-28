@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contexa — Point → Explain → Hand off</title>
+  <meta name="description" content="Contexa 是一款网页上下文标注与交付工具，让产品、设计、测试、运营和客户把说明精准绑定到页面元素，并以结构化数据交付给团队或 AI。">
+  <style>
+    :root {
+      --bg: #fafafa;
+      --fg: #1a1a1a;
+      --fg-soft: #6b6b6b;
+      --divider: #e6e6e6;
+      --accent: #2b2b2b;
+      --accent-fg: #ffffff;
+      --tag: #f0f0f0;
+      --shadow: 0 12px 40px rgba(0,0,0,.06);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; }
+
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
+
+    /* Header */
+    header {
+      position: sticky; top: 0; z-index: 10;
+      background: rgba(250,250,250,.85);
+      backdrop-filter: saturate(180%) blur(12px);
+      border-bottom: 1px solid var(--divider);
+    }
+    .nav { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+    .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 18px; }
+    .brand-dot { width: 22px; height: 22px; border-radius: 6px; background: var(--accent); display: grid; place-items: center; color: var(--accent-fg); font-size: 12px; }
+    .nav-links { display: flex; align-items: center; gap: 22px; font-size: 14px; }
+    .nav-links a { color: var(--fg-soft); text-decoration: none; transition: color .15s; }
+    .nav-links a:hover { color: var(--fg); }
+    .nav-cta {
+      padding: 7px 16px; border-radius: 8px;
+      background: var(--accent); color: var(--accent-fg);
+      font-size: 14px; font-weight: 600; text-decoration: none;
+      transition: transform .15s, opacity .15s;
+    }
+    .nav-cta:hover { transform: translateY(-1px); opacity: .92; }
+
+    /* Hero */
+    .hero { padding: 90px 0 60px; text-align: center; }
+    .hero h1 { font-size: clamp(34px, 6vw, 56px); font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+    .hero h1 .em { background: linear-gradient(135deg, #5b7cba, #907aa9); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .hero p.sub { margin: 22px auto 0; max-width: 640px; font-size: 18px; color: var(--fg-soft); }
+    .hero-cta { margin-top: 36px; display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 13px 26px; border-radius: 10px;
+      font-size: 15px; font-weight: 600; text-decoration: none;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .btn-primary { background: var(--accent); color: var(--accent-fg); box-shadow: var(--shadow); }
+    .btn-primary:hover { transform: translateY(-2px); }
+    .btn-ghost { background: transparent; color: var(--fg); border: 1px solid var(--divider); }
+    .btn-ghost:hover { background: var(--tag); }
+
+    .badges { margin-top: 28px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    .badge { padding: 6px 12px; background: var(--tag); border: 1px solid var(--divider); border-radius: 999px; font-size: 12.5px; color: var(--fg-soft); }
+
+    /* Screenshot placeholder */
+    .shot-frame {
+      margin: 60px auto 0; max-width: 920px;
+      border-radius: 16px; overflow: hidden;
+      border: 1px solid var(--divider); box-shadow: var(--shadow);
+      background: #fff;
+      aspect-ratio: 16 / 10;
+      display: grid; place-items: center;
+      color: var(--fg-soft); font-size: 14px;
+    }
+
+    /* Sections */
+    section.block { padding: 72px 0; border-top: 1px solid var(--divider); }
+    .section-title { font-size: 30px; font-weight: 800; letter-spacing: -0.01em; text-align: center; }
+    .section-sub { text-align: center; color: var(--fg-soft); margin-top: 10px; font-size: 16px; }
+    .grid { margin-top: 44px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+    @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+    .card { padding: 28px 24px; background: #fff; border: 1px solid var(--divider); border-radius: 14px; transition: transform .18s, box-shadow .18s; }
+    .card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+    .card .icon { font-size: 28px; line-height: 1; margin-bottom: 14px; }
+    .card h3 { font-size: 17px; font-weight: 700; }
+    .card p { margin-top: 8px; color: var(--fg-soft); font-size: 14.5px; }
+
+    /* Steps */
+    .steps { margin-top: 44px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+    @media (max-width: 760px) { .steps { grid-template-columns: 1fr 1fr; } }
+    .step { padding: 24px 20px; background: #fff; border: 1px solid var(--divider); border-radius: 14px; }
+    .step .num { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--accent-fg); display: grid; place-items: center; font-weight: 700; font-size: 14px; margin-bottom: 14px; }
+    .step h4 { font-size: 15px; font-weight: 700; }
+    .step p { margin-top: 6px; color: var(--fg-soft); font-size: 13.5px; }
+
+    /* Privacy highlight */
+    .privacy-band { margin-top: 40px; padding: 32px; background: #fff; border: 1px solid var(--divider); border-radius: 16px; text-align: center; }
+    .privacy-band .lock { font-size: 30px; }
+    .privacy-band p { max-width: 640px; margin: 12px auto 0; color: var(--fg-soft); font-size: 15px; }
+
+    /* Footer */
+    footer { padding: 48px 0 60px; border-top: 1px solid var(--divider); }
+    .foot { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+    .foot-links { display: flex; gap: 20px; font-size: 14px; }
+    .foot-links a { color: var(--fg-soft); text-decoration: none; }
+    .foot-links a:hover { color: var(--fg); }
+    .foot-copy { color: var(--fg-soft); font-size: 13px; }
+
+    /* i18n toggle */
+    .lang-toggle { display: inline-flex; gap: 2px; background: var(--tag); border-radius: 8px; padding: 3px; }
+    .lang-toggle button { border: none; background: transparent; padding: 5px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; color: var(--fg-soft); font-family: inherit; }
+    .lang-toggle button.active { background: #fff; color: var(--fg); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    [data-en] { display: none; }
+    body.lang-en [data-zh] { display: none; }
+    body.lang-en [data-en] { display: inline; }
+  </style>
+</head>
+<body class="lang-zh">
+  <header>
+    <div class="wrap nav">
+      <div class="brand"><span class="brand-dot">C</span> Contexa</div>
+      <div class="nav-links">
+        <a href="#features"><span data-zh>特性</span><span data-en>Features</span></a>
+        <a href="#how"><span data-zh>如何工作</span><span data-en>How it works</span></a>
+        <a href="#privacy"><span data-zh>隐私</span><span data-en>Privacy</span></a>
+        <span class="lang-toggle">
+          <button id="langZh" class="active">中</button>
+          <button id="langEn">EN</button>
+        </span>
+        <a class="nav-cta" href="#install"><span data-zh>添加到 Chrome</span><span data-en>Add to Chrome</span></a>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <!-- Hero -->
+    <div class="hero">
+      <h1>Contexa<br><span class="em"><span data-zh>网页上下文标注与交付</span><span data-en>Contextual web annotation &amp; handoff</span></span></h1>
+      <p class="sub">
+        <span data-zh>将说明精准绑定到页面元素，以结构化数据交付给团队或 AI</span>
+        <span data-en>Let product, design, QA, operations, and clients attach notes precisely to page elements and hand off structured context to teams or AI.</span>
+      </p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="#install">
+          <span data-zh>添加到 Chrome</span><span data-en>Add to Chrome</span> →
+        </a>
+        <a class="btn btn-ghost" href="#how">
+          <span data-zh>查看演示</span><span data-en>See how it works</span>
+        </a>
+      </div>
+      <div class="badges">
+        <span class="badge">🔒 <span data-zh>轻量极简</span><span data-en>No site permissions at install</span></span>
+        <span class="badge">📦 <span data-zh>本地存储，数据自主</span><span data-en>Local storage, you own the data</span></span>
+        <span class="badge">🎨 <span data-zh>15 款主题</span><span data-en>15 themes</span></span>
+      </div>
+
+      <!-- 截图占位：上架后替换为 screenshot-1.png -->
+      <div class="shot-frame" id="hero-shot">
+        <span data-zh>📷 此处放置主截图（screenshot-1.png，1280×800）</span>
+        <span data-en>📷 Place hero screenshot here (screenshot-1.png, 1280×800)</span>
+      </div>
+    </div>
+
+    <!-- Features -->
+    <section class="block" id="features">
+      <h2 class="section-title"><span data-zh>核心特性</span><span data-en>Core Features</span></h2>
+      <p class="section-sub"><span data-zh>指出位置、说明上下文、完成结构化交付</span><span data-en>Point, explain, and hand off with context intact</span></p>
+      <div class="grid">
+        <div class="card">
+          <div class="icon">🎯</div>
+          <h3><span data-zh>精准元素定位</span><span data-en>Precise Targeting</span></h3>
+          <p><span data-zh>自动生成稳定的 CSS 选择器，备注与 DOM 元素精准绑定，原型改动也能找回。</span><span data-en>Auto-generated stable CSS selectors keep notes bound to elements — even as the prototype evolves.</span></p>
+        </div>
+        <div class="card">
+          <div class="icon">✏️</div>
+          <h3><span data-zh>三种工作模式</span><span data-en>Three Modes</span></h3>
+          <p><span data-zh>标注（编辑）、预览（可交互）、云端（只读共享），覆盖标注与交付全流程。</span><span data-en>Annotation (edit), Preview (interactive), and Cloud (read-only sharing) cover the full annotation and handoff flow.</span></p>
+        </div>
+        <div class="card">
+          <div class="icon">☁️</div>
+          <h3><span data-zh>云端一键共享</span><span data-en>One-Click Sharing</span></h3>
+          <p><span data-zh>导出 JSON，上传到任意静态托管，团队配置 URL 即可查看，也可直接交付给 AI。</span><span data-en>Export JSON to any static host for team review, or hand the structured context directly to AI.</span></p>
+        </div>
+        <div class="card">
+          <div class="icon">🔀</div>
+          <h3><span data-zh>拖拽排序</span><span data-en>Drag to Reorder</span></h3>
+          <p><span data-zh>侧边栏拖拽调整备注顺序，按评审优先级组织，阅读更高效。</span><span data-en>Drag notes in the sidebar to organize by review priority for efficient reading.</span></p>
+        </div>
+        <div class="card">
+          <div class="icon">🎨</div>
+          <h3><span data-zh>15 款编辑器主题</span><span data-en>15 Editor Themes</span></h3>
+          <p><span data-zh>Solarized、GitHub、Nord、Rosé Pine、Gruvbox... 总有一款贴合你的审美。</span><span data-en>Solarized, GitHub, Nord, Rosé Pine, Gruvbox... find the one that fits your taste.</span></p>
+        </div>
+        <div class="card">
+          <div class="icon">⌨️</div>
+          <h3><span data-zh>完整快捷键</span><span data-en>Full Shortcuts</span></h3>
+          <p><span data-zh>⌘E 切换标注/预览、⌘+Enter 保存、⌘0 云端模式/关闭备注，全键盘流操作。</span><span data-en>⌘E toggles Annotate/Preview, ⌘+Enter saves, ⌘0 enters cloud mode / closes notes — full keyboard workflow.</span></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="block" id="how">
+      <h2 class="section-title"><span data-zh>如何工作</span><span data-en>How It Works</span></h2>
+      <p class="section-sub"><span data-zh>四步把网页上下文交付给团队或 AI</span><span data-en>Four steps to hand off web context to teams or AI</span></p>
+      <div class="steps">
+        <div class="step">
+          <div class="num">1</div>
+          <h4><span data-zh>指出页面元素</span><span data-en>Point</span></h4>
+          <p><span data-zh>在网页或 HTML 原型上点击元素，精准确定说明对应的位置。</span><span data-en>Click an element on a web page or HTML prototype to pinpoint the relevant location.</span></p>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <h4><span data-zh>补充上下文</span><span data-en>Explain</span></h4>
+          <p><span data-zh>用标题和详细描述记录需求、反馈、缺陷或验收意见。</span><span data-en>Add a title and details for requirements, feedback, defects, or acceptance notes.</span></p>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <h4><span data-zh>导出结构化数据</span><span data-en>Export</span></h4>
+          <p><span data-zh>一键导出包含元素定位和说明内容的 JSON，可共享、可版本管理。</span><span data-en>Export JSON containing element locations and notes, ready to share or version.</span></p>
+        </div>
+        <div class="step">
+          <div class="num">4</div>
+          <h4><span data-zh>交付团队或 AI</span><span data-en>Hand off</span></h4>
+          <p><span data-zh>上传 JSON 后，团队通过 URL 在原页面查看，或由 AI 直接读取结构化数据。</span><span data-en>Host the JSON for teams to review on the original page, or hand it directly to AI.</span></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Privacy -->
+    <section class="block" id="privacy">
+      <h2 class="section-title"><span data-zh>隐私优先</span><span data-en>Privacy-First</span></h2>
+      <p class="section-sub"><span data-zh>按需授权，数据自主</span><span data-en>On-demand permission, you own your data</span></p>
+      <div class="privacy-band">
+        <div class="lock">🔒</div>
+        <p>
+          <span data-zh>Contexa 安装时不索取任何网站权限。仅当你在某个网站首次标注时，Chrome 才弹出授权提示并明确显示具体子域名，由你主动决定。所有标注数据仅存本地浏览器，不上传任何服务器。可在「域名管理」随时撤销授权。</span>
+          <span data-en>Contexa requests no website permissions at install. Only when you first annotate a site does Chrome prompt — clearly showing the exact subdomain — and you decide. All annotation data stays in your local browser, never uploaded to any server. Revoke access anytime in "Domain Management".</span>
+        </p>
+      </div>
+    </section>
+
+    <!-- Install CTA -->
+    <section class="block" id="install">
+      <div style="text-align:center;">
+        <h2 class="section-title"><span data-zh>开始使用 Contexa</span><span data-en>Get Started</span></h2>
+        <p class="section-sub"><span data-zh>免费、开源，立即添加到 Chrome</span><span data-en>Free, open source — add to Chrome now</span></p>
+        <div class="hero-cta">
+          <!-- 上架后把 href 换成真实的 Chrome Web Store 链接 -->
+          <a class="btn btn-primary" href="https://github.com/unangela/Contexa">
+            <span data-zh>添加到 Chrome</span><span data-en>Add to Chrome</span> →
+          </a>
+          <a class="btn btn-ghost" href="https://github.com/unangela/Contexa">
+            <span data-zh>GitHub 仓库</span><span data-en>GitHub Repo</span>
+          </a>
+        </div>
+        <p style="margin-top:20px;color:var(--fg-soft);font-size:13px;">
+          <span data-zh>也可通过「加载已解压的扩展程序」从源码安装。</span>
+          <span data-en>Or install from source via "Load unpacked".</span>
+        </p>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <div class="wrap foot">
+      <div class="foot-copy">© 2026 Contexa · <span data-zh>Point → Explain → Hand off</span><span data-en>Point → Explain → Hand off</span></div>
+      <div class="foot-links">
+        <a href="https://github.com/unangela/Contexa">GitHub</a>
+        <a href="https://github.com/unangela/Contexa/issues"><span data-zh>问题反馈</span><span data-en>Support</span></a>
+        <!-- 政策链接指向仓库内文件，GitHub Pages 启用后用相对路径 /Contexa/legal/PRIVACY -->
+        <a href="legal/PRIVACY.html"><span data-zh>隐私政策</span><span data-en>Privacy</span></a>
+        <a href="legal/TERMS.html"><span data-zh>服务条款</span><span data-en>Terms</span></a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // 中英切换
+    const body = document.body;
+    document.getElementById('langZh').addEventListener('click', () => {
+      body.classList.remove('lang-en'); body.classList.add('lang-zh');
+      document.getElementById('langZh').classList.add('active');
+      document.getElementById('langEn').classList.remove('active');
+    });
+    document.getElementById('langEn').addEventListener('click', () => {
+      body.classList.remove('lang-zh'); body.classList.add('lang-en');
+      document.getElementById('langEn').classList.add('active');
+      document.getElementById('langZh').classList.remove('active');
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+# GitHub Pages 配置
+# 使用 docs 目录作为 Pages 源（仓库 Settings → Pages → Source: deploy from branch → main /docs）
+title: Contexa
+description: Point → Explain → Hand off — 网页上下文标注与交付工具
+theme: jekyll-theme-primer

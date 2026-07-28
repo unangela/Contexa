@@ -1,5 +1,8 @@
-// 引入共享 i18n（service worker 支持 importScripts）
-importScripts('i18n.js');
+// Manifest V3 module service worker dependencies.
+import './shared.js';
+import './i18n.js';
+
+const { ContexaShared, i18n } = globalThis;
 const t = i18n.t;
 
 // Track panel visibility per window (声明提前，避免引用先于声明)
@@ -40,44 +43,6 @@ chrome.action.onClicked.addListener((tab) => {
   panelOpen[tab.windowId] = true;
 });
 
-// ---- SSRF 防护：校验云端 JSON URL ----
-// 仅允许公网 http/https，拦截 localhost / 内网 IP / 私有段。
-// 注意：这会打断本地开发测试（如 localhost:3000 托管 JSON），属刻意权衡。
-// 如需临时放宽本地调试，可在下方函数顶部直接 return true。
-function isAllowedFetchUrl(rawUrl) {
-  let url;
-  try {
-    url = new URL(rawUrl);
-  } catch (e) {
-    return false;
-  }
-
-  // 只允许 http/https（拦截 file://、data: 等）
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
-
-  const host = url.hostname.toLowerCase();
-
-  // 拦截 localhost 及变体
-  if (host === 'localhost' || host === '::1' || host === '0.0.0.0') return false;
-
-  // 拦截 IPv4 私有 / 保留 / 回环段
-  if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) {
-    const [a, b] = host.split('.').map(Number);
-    if (a === 10) return false;                       // 10.0.0.0/8
-    if (a === 172 && b >= 16 && b <= 31) return false; // 172.16.0.0/12
-    if (a === 192 && b === 168) return false;          // 192.168.0.0/16
-    if (a === 127) return false;                       // 127.0.0.0/8 loopback
-    if (a === 0) return false;                         // 0.0.0.0/8
-    if (a === 169 && b === 254) return false;          // 169.254.0.0/16 link-local
-    if (a >= 224) return false;                        // 组播 / 保留
-  }
-
-  // 拦截 IPv6 私有 / 回环
-  if (/^(::1?|fe80|fc|fd)/i.test(host)) return false;
-
-  return true;
-}
-
 // ---- 域名授权：动态 content script 注册/注销 ----
 // 每个已授权域名注册一个动态脚本，ID 规则 contexa-<hostname>，
 // matches 精确到子域名：*://<hostname>/*（不含通配子域）。
@@ -107,7 +72,7 @@ async function registerDomain(hostname) {
   await chrome.scripting.registerContentScripts([{
     id: id,
     matches: [`*://${hostname}/*`],
-    js: ['i18n.js', 'content.js'],
+    js: ['shared.js', 'i18n.js', 'content.js'],
     runAt: 'document_idle'
   }]);
 }
@@ -125,24 +90,43 @@ async function unregisterDomain(hostname) {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'fetchSharedNotes') {
     // SSRF 校验：非法 URL 直接拒绝
-    if (!isAllowedFetchUrl(message.payload && message.payload.url)) {
+    if (!ContexaShared.isAllowedFetchUrl(message.payload && message.payload.url)) {
       sendResponse({ success: false, error: t('err.ssrBlocked') });
       return false;
     }
 
-    fetch(message.payload.url, { cache: 'no-cache' })
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    fetch(message.payload.url, {
+      cache: 'no-cache',
+      credentials: 'omit',
+      redirect: 'error',
+      signal: controller.signal
+    })
       .then(response => {
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
-        return response.json();
+        const declaredLength = Number(response.headers.get('content-length') || 0);
+        if (declaredLength > ContexaShared.MAX_SHARED_BYTES) {
+          throw new Error('Response is too large');
+        }
+        return response.text();
       })
-      .then(data => {
+      .then(text => {
+        if (new TextEncoder().encode(text).length > ContexaShared.MAX_SHARED_BYTES) {
+          throw new Error('Response is too large');
+        }
+        const data = JSON.parse(text);
+        const validation = ContexaShared.validateAnnotationDocument(data);
+        if (!validation.valid) throw new Error(validation.error);
         sendResponse({ success: true, data });
       })
       .catch(error => {
-        sendResponse({ success: false, error: error.message });
-      });
+        const message = error && error.name === 'AbortError' ? 'Request timed out' : error.message;
+        sendResponse({ success: false, error: message });
+      })
+      .finally(() => clearTimeout(timeout));
     return true; // 异步响应
   }
 
@@ -165,7 +149,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           try {
             await chrome.scripting.executeScript({
               target: { tabId },
-              files: ['i18n.js', 'content.js']
+              files: ['shared.js', 'i18n.js', 'content.js']
             });
           } catch (e) {
             // 当前页面可能已注入过或无法注入（如已通过静态注入），忽略
@@ -187,7 +171,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     chrome.scripting.executeScript({
       target: { tabId },
-      files: ['i18n.js', 'content.js']
+      files: ['shared.js', 'i18n.js', 'content.js']
     })
       .then(() => sendResponse({ success: true }))
       .catch(err => sendResponse({ success: false, error: err && err.message }));

@@ -175,7 +175,7 @@ function init() {
     requestState();
   });
 
-  requestState();
+  migrateStoredNotes(requestState);
   loadTheme();
 
   // 初始化语言并应用文案（首次根据浏览器语言或用户历史选择）
@@ -705,14 +705,9 @@ function onModeSelect(mode) {
         return;
       }
 
-      // URL exists — now check if already active
-      const activeMode = currentState.mode === 'preview' && currentState.readOnly
-        ? 'shared'
-        : currentState.mode;
-      if (mode === activeMode) return;
-
       currentState.mode = 'preview';
       currentState.readOnly = true;
+      ContexaShared.resetSharedNotes(currentState);
       updateActiveButton('shared', true);
       renderNoteList(currentState.notes);
 
@@ -724,16 +719,14 @@ function onModeSelect(mode) {
         }, (response) => {
           if (chrome.runtime.lastError || !response || !response.success) {
             toast(t('toast.sharedFail'));
-            currentState.readOnly = false;
-            updateActiveButton('preview', false);
+            updateActiveButton('shared', true);
             renderNoteList(currentState.notes);
             return;
           }
           const shared = response.shared;
           if (!shared || !shared.success) {
             toast(t('toast.sharedFail'));
-            currentState.readOnly = false;
-            updateActiveButton('preview', false);
+            updateActiveButton('shared', true);
             renderNoteList(currentState.notes);
           } else if (shared.count === 0) {
             toast(t('toast.sharedEmpty'));
@@ -856,16 +849,7 @@ function cycleMode() {
     return;
   }
 
-  const modes = ['annotation', 'preview', 'shared'];
-  let activeMode = currentState.mode === 'preview' && currentState.readOnly
-    ? 'shared'
-    : currentState.mode;
-
-  const currentIndex = modes.indexOf(activeMode);
-  const nextIndex = (currentIndex + 1) % modes.length;
-  const nextMode = modes[nextIndex];
-
-  onModeSelect(nextMode);
+  onModeSelect(ContexaShared.getNextEditableMode(currentState.mode));
 }
 
 // Ctrl/Cmd+0：云端模式 → 关闭已打开备注；非云端 → 进入云端模式
@@ -876,10 +860,10 @@ function onCtrlZero() {
   }
   const isShared = currentState.mode === 'preview' && currentState.readOnly;
   if (isShared) {
-    // 云端模式：发消息给 content 关闭所有已打开备注
+    // 云端模式：发消息给 content 切换所有备注展开状态
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (!tabs[0]) return;
-      chrome.tabs.sendMessage(tabs[0].id, { type: 'closeAllNotes' }, () => {
+      chrome.tabs.sendMessage(tabs[0].id, { type: 'toggleAllNotes' }, () => {
         if (chrome.runtime.lastError) {
           toast(t('toast.unsupportedOp'));
         }
@@ -893,7 +877,7 @@ function onCtrlZero() {
 
 function saveShareUrl() {
   const url = els.shareUrl.value.trim();
-  if (!url) {
+  if (!url || !ContexaShared.isAllowedFetchUrl(url)) {
     toast(t('toast.urlInvalid'));
     return;
   }
@@ -945,6 +929,10 @@ function setTheme(theme) {
         chrome.tabs.sendMessage(tabs[0].id, {
           type: 'setTheme',
           payload: { theme }
+        }, () => {
+          // 扩展重启后 content script 可能尚未注入；忽略接收端不存在的错误，
+          // 避免未捕获的 Promise 拒绝（主题已写入 storage，下次注入会读取）
+          if (chrome.runtime.lastError) { /* receiving end may not exist */ }
         });
       }
     });
@@ -962,22 +950,29 @@ function closeAllDropdowns() {
   document.querySelectorAll(".dd-menu").forEach((m) => m.classList.remove("show"));
 }
 
-// ---- Storage helpers (key logic must match content.js) ----
-function getStorageKeyForUrl(urlStr) {
-  try {
-    const url = new URL(urlStr);
-    if (url.protocol === "file:") {
-      return "domNotes_" + url.pathname;
-    }
-    return "domNotes_" + url.hostname + url.pathname;
-  } catch (e) {
-    return null;
-  }
-}
-
 function getActiveTab(callback) {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     callback(tabs[0] || null);
+  });
+}
+
+function migrateStoredNotes(callback) {
+  chrome.storage.local.get(null, (allData) => {
+    const { updates, keysToRemove } = ContexaShared.buildStorageMigration(allData);
+    if (keysToRemove.length === 0) {
+      if (callback) callback();
+      return;
+    }
+
+    chrome.storage.local.set(updates, () => {
+      if (chrome.runtime.lastError) {
+        if (callback) callback();
+        return;
+      }
+      chrome.storage.local.remove(keysToRemove, () => {
+        if (callback) callback();
+      });
+    });
   });
 }
 
@@ -1034,7 +1029,7 @@ function exportAll() {
   chrome.storage.local.get(null, (allData) => {
     const pages = [];
     for (const key of Object.keys(allData)) {
-      if (key.startsWith("domNotes_") && allData[key] && Array.isArray(allData[key].notes)) {
+      if (key.startsWith(ContexaShared.STORAGE_PREFIX) && allData[key] && Array.isArray(allData[key].notes)) {
         pages.push({
           url: allData[key].url || "",
           notes: allData[key].notes
@@ -1046,7 +1041,8 @@ function exportAll() {
         return;
       }
       const exportData = {
-        version: "0.3.0",
+        version: ContexaShared.EXTENSION_VERSION,
+        schemaVersion: ContexaShared.DATA_SCHEMA_VERSION,
         exportedAt: new Date().toISOString(),
         pages
       };
@@ -1064,6 +1060,11 @@ function importJson(event) {
   reader.onload = () => {
     try {
       const data = JSON.parse(reader.result);
+      const validation = ContexaShared.validateAnnotationDocument(data);
+      if (!validation.valid) {
+        toast(t('toast.importFail'));
+        return;
+      }
 
       // Normalize to a list of { url, notes } pages
       let pages = [];
@@ -1095,12 +1096,12 @@ function importPages(pages) {
       return;
     }
 
-    const currentKey = getStorageKeyForUrl(tab.url);
+    const currentKey = ContexaShared.getStorageKeyForUrl(tab.url);
     const currentNotes = [];
     const otherPages = [];
 
     for (const page of pages) {
-      const key = getStorageKeyForUrl(page.url);
+      const key = ContexaShared.getStorageKeyForUrl(page.url);
       if (key === currentKey) {
         // Current page: route through content script (handles all protocols)
         currentNotes.push(...page.notes);
@@ -1126,17 +1127,14 @@ function importPages(pages) {
 
     // Other pages: merge directly into storage
     for (const page of otherPages) {
-      const key = getStorageKeyForUrl(page.url);
+      const key = ContexaShared.getStorageKeyForUrl(page.url);
       tasks.push(
         new Promise((resolve) => {
           chrome.storage.local.get([key], (result) => {
             const existing = result[key];
             const existingNotes =
               existing && Array.isArray(existing.notes) ? existing.notes : [];
-            const existingIds = new Set(existingNotes.map((n) => n.id));
-            const merged = existingNotes.concat(
-              page.notes.filter((n) => !existingIds.has(n.id))
-            );
+            const merged = ContexaShared.mergeNotesById(existingNotes, page.notes);
             chrome.storage.local.set(
               { [key]: { url: page.url, notes: merged } },
               resolve
@@ -1163,7 +1161,7 @@ function clearPage() {
 function clearAllData() {
   chrome.storage.local.get(null, (allData) => {
     const keysToRemove = Object.keys(allData).filter((k) =>
-      k.startsWith("domNotes_")
+      k.startsWith(ContexaShared.STORAGE_PREFIX)
     );
     if (keysToRemove.length === 0) {
       toast(t('toast.noClearData'));
