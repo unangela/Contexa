@@ -15,8 +15,8 @@
 | 服务条款（MD 双语） | `store/legal/TERMS.md` | ✅ 已就绪 |
 | 服务条款（HTML，供落地页） | `docs/legal/TERMS.html` | ✅ 已就绪 |
 | 商店元数据（名称/描述/分类/关键词/权限说明） | `store/STORE_METADATA.md` | ✅ 已就绪 |
-| 截图脚本（5 张规划） | `store/SCREENSHOTS_SCRIPT.md` | 📝 待制作图片 |
-| 落地页（GitHub Pages） | `docs/index.html` | ✅ 已就绪（需填截图） |
+| 商店截图（3 张） | `docs/screenshot-1~3.png` | ✅ 已就绪 |
+| 落地页（GitHub Pages） | `docs/index.html` | ✅ 已就绪（含截图轮播） |
 | 本操作指引 | `store/LAUNCH_GUIDE.md` | ✅ 本文件 |
 
 ---
@@ -45,15 +45,12 @@ Chrome 商店审核**强制要求**一个可公开访问的「隐私政策 URL�
 
 > 落地页和政策页中的仓库链接已统一为 `unangela/Contexa`。
 
-## 第 2 步：制作商店视觉物料
+## 第 2 步：商店视觉物料（截图已完成）
 
-需要你用设计工具完成（我无法生成像素图片/视频）：
+3 张截图已就绪（`docs/screenshot-1~3.png`），落地页已集成轮播。还差：
 
-- [ ] **店头宣传图** 440×280（横向 banner，展示产品名 + slogan + 主视觉）
-- [ ] **5 张截图** 1280×800（按 `store/SCREENSHOTS_SCRIPT.md` 规划拍摄 + 叠字）
-- [ ] （可选）**演示视频** ≤30s（按脚本最后一节）
-- [ ] 把图片放进 `store/assets/`，命名 `promo-440.png`、`screenshot-1.png` ~ `screenshot-5.png`
-- [ ] 把 `screenshot-1.png` 也复制一份到 `docs/`，替换落地页 hero 区的占位（编辑 `docs/index.html` 的 `#hero-shot`）
+- [ ] **店头宣传图** 440×280（横向 banner，展示产品名 + slogan + 主视觉）— 可选，没有也能上架
+- [ ] （可选）**演示视频** ≤30s
 
 ## 第 3 步：打包扩展
 

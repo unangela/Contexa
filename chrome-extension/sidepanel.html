@@ -180,6 +180,23 @@
         </p>
       </div>
     </section>
+
+    <footer class="donate-footer">
+      <button class="donate-trigger" id="donateTrigger">
+        <span class="donate-emoji">☕</span>
+        <span data-i18n="donate.title">请开发者喝杯咖啡</span>
+      </button>
+    </footer>
+  </div>
+
+  <!-- 收款码放大弹层 -->
+  <div class="donate-modal" id="donateModal" hidden>
+    <div class="donate-modal-mask" id="donateMask"></div>
+    <div class="donate-modal-box">
+      <button class="donate-modal-close" id="donateClose" aria-label="Close">×</button>
+      <p class="donate-modal-title" data-i18n="donate.scan">微信扫码 · 感谢支持</p>
+      <img class="donate-qr" src="icons/donate-wechat.jpg" alt="WeChat QR">
+    </div>
   </div>
 
   <script src="shared.js"></script>

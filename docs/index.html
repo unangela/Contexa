@@ -38,13 +38,14 @@
     }
     .nav { display: flex; align-items: center; justify-content: space-between; height: 60px; }
     .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 18px; }
-    .brand-dot { width: 22px; height: 22px; border-radius: 6px; background: var(--accent); display: grid; place-items: center; color: var(--accent-fg); font-size: 12px; }
+    .brand-emoji { font-size: 22px; line-height: 1; }
     .nav-links { display: flex; align-items: center; gap: 22px; font-size: 14px; }
     .nav-links a { color: var(--fg-soft); text-decoration: none; transition: color .15s; }
     .nav-links a:hover { color: var(--fg); }
-    .nav-cta {
+    .nav-cta, .nav-links a.nav-cta {
+      display: inline-flex; align-items: center;
       padding: 7px 16px; border-radius: 8px;
-      background: var(--accent); color: var(--accent-fg);
+      background: var(--accent); color: var(--accent-fg) !important;
       font-size: 14px; font-weight: 600; text-decoration: none;
       transition: transform .15s, opacity .15s;
     }
@@ -71,15 +72,39 @@
     .badge { padding: 6px 12px; background: var(--tag); border: 1px solid var(--divider); border-radius: 999px; font-size: 12.5px; color: var(--fg-soft); }
 
     /* Screenshot placeholder */
-    .shot-frame {
-      margin: 60px auto 0; max-width: 920px;
+    /* Hero 轮播 */
+    .carousel {
+      margin: 60px auto 0; max-width: 920px; position: relative;
       border-radius: 16px; overflow: hidden;
       border: 1px solid var(--divider); box-shadow: var(--shadow);
       background: #fff;
-      aspect-ratio: 16 / 10;
-      display: grid; place-items: center;
-      color: var(--fg-soft); font-size: 14px;
     }
+    .carousel-track {
+      display: flex; transition: transform .45s cubic-bezier(.4,0,.2,1);
+    }
+    .carousel-track img { display: block; width: 100%; height: auto; flex-shrink: 0; }
+    .carousel-nav {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      width: 40px; height: 40px; border-radius: 50%;
+      border: none; background: rgba(255,255,255,.9);
+      box-shadow: 0 2px 8px rgba(0,0,0,.15);
+      font-size: 24px; line-height: 1; color: var(--fg);
+      cursor: pointer; transition: background .15s, transform .15s;
+      display: grid; place-items: center; padding: 0;
+    }
+    .carousel-nav:hover { background: #fff; transform: translateY(-50%) scale(1.08); }
+    .carousel-nav.prev { left: 12px; }
+    .carousel-nav.next { right: 12px; }
+    .carousel-dots {
+      position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 8px;
+    }
+    .carousel-dots button {
+      width: 8px; height: 8px; border-radius: 50%; border: none;
+      background: rgba(255,255,255,.5); cursor: pointer; padding: 0;
+      transition: background .15s, width .25s;
+    }
+    .carousel-dots button.active { background: #fff; width: 22px; border-radius: 4px; }
 
     /* Sections */
     section.block { padding: 72px 0; border-top: 1px solid var(--divider); }
@@ -126,7 +151,7 @@
 <body class="lang-zh">
   <header>
     <div class="wrap nav">
-      <div class="brand"><span class="brand-dot">C</span> Contexa</div>
+      <div class="brand"><span class="brand-emoji">🏷️</span> Contexa</div>
       <div class="nav-links">
         <a href="#features"><span data-zh>特性</span><span data-en>Features</span></a>
         <a href="#how"><span data-zh>如何工作</span><span data-en>How it works</span></a>
@@ -162,16 +187,22 @@
         <span class="badge">🎨 <span data-zh>15 款主题</span><span data-en>15 themes</span></span>
       </div>
 
-      <!-- 截图占位：上架后替换为 screenshot-1.png -->
-      <div class="shot-frame" id="hero-shot">
-        <span data-zh>📷 此处放置主截图（screenshot-1.png，1280×800）</span>
-        <span data-en>📷 Place hero screenshot here (screenshot-1.png, 1280×800)</span>
+      <!-- 主截图轮播 -->
+      <div class="carousel" id="heroCarousel">
+        <div class="carousel-track" id="carouselTrack">
+          <img src="screenshot-1.png" alt="Contexa annotation on a prototype">
+          <img src="screenshot-2.png" alt="Sidebar note management">
+          <img src="screenshot-3.png" alt="Cloud sharing read-only">
+        </div>
+        <button class="carousel-nav prev" id="carouselPrev" aria-label="Previous">‹</button>
+        <button class="carousel-nav next" id="carouselNext" aria-label="Next">›</button>
+        <div class="carousel-dots" id="carouselDots"></div>
       </div>
     </div>
 
     <!-- Features -->
     <section class="block" id="features">
-      <h2 class="section-title"><span data-zh>核心特性</span><span data-en>Core Features</span></h2>
+      <h2 class="section-title"><span data-zh>✨ 核心特性</span><span data-en>✨ Core Features</span></h2>
       <p class="section-sub"><span data-zh>指出位置、说明上下文、完成结构化交付</span><span data-en>Point, explain, and hand off with context intact</span></p>
       <div class="grid">
         <div class="card">
@@ -209,7 +240,7 @@
 
     <!-- How it works -->
     <section class="block" id="how">
-      <h2 class="section-title"><span data-zh>如何工作</span><span data-en>How It Works</span></h2>
+      <h2 class="section-title"><span data-zh>⚙️ 如何工作</span><span data-en>⚙️ How It Works</span></h2>
       <p class="section-sub"><span data-zh>四步把网页上下文交付给团队或 AI</span><span data-en>Four steps to hand off web context to teams or AI</span></p>
       <div class="steps">
         <div class="step">
@@ -237,10 +268,9 @@
 
     <!-- Privacy -->
     <section class="block" id="privacy">
-      <h2 class="section-title"><span data-zh>隐私优先</span><span data-en>Privacy-First</span></h2>
+      <h2 class="section-title"><span data-zh>🔒 隐私优先</span><span data-en>🔒 Privacy-First</span></h2>
       <p class="section-sub"><span data-zh>按需授权，数据自主</span><span data-en>On-demand permission, you own your data</span></p>
       <div class="privacy-band">
-        <div class="lock">🔒</div>
         <p>
           <span data-zh>Contexa 安装时不索取任何网站权限。仅当你在某个网站首次标注时，Chrome 才弹出授权提示并明确显示具体子域名，由你主动决定。所有标注数据仅存本地浏览器，不上传任何服务器。可在「域名管理」随时撤销授权。</span>
           <span data-en>Contexa requests no website permissions at install. Only when you first annotate a site does Chrome prompt — clearly showing the exact subdomain — and you decide. All annotation data stays in your local browser, never uploaded to any server. Revoke access anytime in "Domain Management".</span>
@@ -251,7 +281,7 @@
     <!-- Install CTA -->
     <section class="block" id="install">
       <div style="text-align:center;">
-        <h2 class="section-title"><span data-zh>开始使用 Contexa</span><span data-en>Get Started</span></h2>
+        <h2 class="section-title"><span data-zh>🚀 开始使用 Contexa</span><span data-en>🚀 Get Started</span></h2>
         <p class="section-sub"><span data-zh>免费、开源，立即添加到 Chrome</span><span data-en>Free, open source — add to Chrome now</span></p>
         <div class="hero-cta">
           <!-- 上架后把 href 换成真实的 Chrome Web Store 链接 -->
@@ -296,6 +326,49 @@
       document.getElementById('langEn').classList.add('active');
       document.getElementById('langZh').classList.remove('active');
     });
+
+    // Hero 截图轮播
+    (function () {
+      const track = document.getElementById('carouselTrack');
+      const prev = document.getElementById('carouselPrev');
+      const next = document.getElementById('carouselNext');
+      const dotsWrap = document.getElementById('carouselDots');
+      const slides = track ? track.querySelectorAll('img') : [];
+      const total = slides.length;
+      if (total === 0) return;
+      let index = 0;
+      let timer = null;
+
+      // 生成指示点
+      slides.forEach((_, i) => {
+        const dot = document.createElement('button');
+        dot.setAttribute('aria-label', 'Go to slide ' + (i + 1));
+        if (i === 0) dot.classList.add('active');
+        dot.addEventListener('click', () => { goTo(i); reset(); });
+        dotsWrap.appendChild(dot);
+      });
+      const dots = dotsWrap.querySelectorAll('button');
+
+      function goTo(i) {
+        index = (i + total) % total;
+        track.style.transform = `translateX(-${index * 100}%)`;
+        dots.forEach((d, di) => d.classList.toggle('active', di === index));
+      }
+      function reset() {
+        if (timer) clearInterval(timer);
+        timer = setInterval(() => goTo(index + 1), 4500);
+      }
+
+      prev.addEventListener('click', () => { goTo(index - 1); reset(); });
+      next.addEventListener('click', () => { goTo(index + 1); reset(); });
+
+      // 悬停暂停
+      const carousel = document.getElementById('heroCarousel');
+      carousel.addEventListener('mouseenter', () => { if (timer) clearInterval(timer); });
+      carousel.addEventListener('mouseleave', reset);
+
+      reset();
+    })();
   </script>
 </body>
 </html>
