@@ -3,3 +3,5 @@
 chrome-extension.crx
 chrome-extension.pem
 dist/
+store/
+demo/

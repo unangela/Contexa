@@ -135,6 +135,10 @@
       'err.ssrBlocked': 'URL 不允许（仅限公网 http/https）',
       'err.missingHost': '缺少 hostname',
       'err.missingTabId': '缺少 tabId',
+
+      // —— 打赏 ——
+      'donate.title': '请开发者喝杯咖啡',
+      'donate.scan': '微信扫码 · 感谢支持',
     },
 
     en: {
@@ -262,6 +266,10 @@
       'err.ssrBlocked': 'URL not allowed (public http/https only)',
       'err.missingHost': 'Missing hostname',
       'err.missingTabId': 'Missing tabId',
+
+      // —— donate ——
+      'donate.title': 'Buy the developer a coffee',
+      'donate.scan': 'Scan with WeChat · Thank you',
     }
   };
 

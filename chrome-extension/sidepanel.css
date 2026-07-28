@@ -252,7 +252,7 @@ html, body {
   border-bottom: 1px solid var(--divider);
 }
 
-.panel:last-child {
+.panel:last-of-type {
   border-bottom: 0;
 }
 
@@ -885,4 +885,102 @@ input[type="file"] {
   border: 1px dashed var(--divider);
   border-radius: 6px;
   text-align: center;
+}
+
+/* ---- 侧边栏底部「请开发者喝杯咖啡」 ---- */
+.donate-footer {
+  padding: 14px 0 4px;
+  text-align: center;
+  border-top: 1px solid var(--divider);
+  margin-top: 6px;
+}
+
+.donate-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid var(--divider);
+  border-radius: 999px;
+  color: var(--fg-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+
+.donate-trigger:hover {
+  background: var(--bar-bg);
+  color: var(--fg);
+  border-color: var(--fg-secondary);
+}
+
+.donate-emoji {
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* ---- 收款码放大弹层 ---- */
+.donate-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+}
+
+.donate-modal[hidden] {
+  display: none;
+}
+
+.donate-modal-mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, .5);
+}
+
+.donate-modal-box {
+  position: relative;
+  z-index: 1;
+  background: var(--bg);
+  border: 1px solid var(--divider);
+  border-radius: 14px;
+  padding: 24px 24px 20px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, .28);
+  max-width: 88%;
+}
+
+.donate-modal-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--fg-secondary);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.donate-modal-close:hover {
+  background: var(--bar-bg);
+  color: var(--fg);
+}
+
+.donate-modal-title {
+  margin: 0 0 12px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.donate-qr {
+  display: block;
+  width: 220px;
+  height: auto;
+  border-radius: 8px;
 }

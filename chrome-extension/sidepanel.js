@@ -25,7 +25,11 @@ const els = {
   grantBtn: document.getElementById("grantBtn"),
   grantedDomainList: document.getElementById("grantedDomainList"),
   langToggle: document.getElementById("langToggle"),
-  langLabel: document.getElementById("langLabel")
+  langLabel: document.getElementById("langLabel"),
+  donateTrigger: document.getElementById("donateTrigger"),
+  donateModal: document.getElementById("donateModal"),
+  donateMask: document.getElementById("donateMask"),
+  donateClose: document.getElementById("donateClose")
 };
 
 // 当前页面授权状态：'unknown' | 'not-needed' | 'granted' | 'pending'
@@ -98,6 +102,13 @@ function init() {
     item.addEventListener("click", () => setTheme(item.dataset.theme));
   });
   els.langToggle.addEventListener("click", toggleLang);
+  // 「请开发者喝杯咖啡」弹层
+  els.donateTrigger.addEventListener("click", () => els.donateModal.hidden = false);
+  els.donateClose.addEventListener("click", () => els.donateModal.hidden = true);
+  els.donateMask.addEventListener("click", () => els.donateModal.hidden = true);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !els.donateModal.hidden) els.donateModal.hidden = true;
+  });
   els.importJson.addEventListener("change", importJson);
   els.saveShareUrl.addEventListener("click", saveShareUrl);
   els.clearShareUrl.addEventListener("click", clearShareUrl);
