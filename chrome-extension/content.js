@@ -13,7 +13,8 @@ const state = {
   selectedId: null,
   editingId: null,
   openIds: [], // read-only mode: which notes are expanded
-  notes: []
+  notes: [],
+  pinsHidden: false // 预览/云端模式下切换小圆点显隐
 };
 
 let shadowRoot = null;
@@ -22,6 +23,14 @@ let renderTimer = null;
 let periodicTimer = null;
 let mutationObserver = null;
 let isContextValid = true;
+// 云端模式 popover hover 时抬高层级用的自增 z-index
+let popoverZ = 100;
+// 云端模式 hover 小圆点临时弹出的 popover（鼠标离开后自动收起）
+let hoverPeek = null;
+// pinsHidden + 云端模式时，hover DOM 元素触发的 pin+popover 清理函数列表
+let domHoverCleanup = [];
+// 当前是否有 hover DOM 弹出的 pin+popover（用于阻止 scheduleRender 清掉它们）
+let domPeekActive = false;
 
 function isExtensionContextValid() {
   if (!isContextValid) return false;
@@ -167,14 +176,12 @@ function init() {
           renderNotes();
           sendResponse({ success: true });
           break;
-        case 'toggleAllNotes':
-          // 云端模式下切换所有备注展开状态（供侧边栏 Ctrl/Cmd+0 调用）
-          if (state.readOnly && state.notes.length > 0) {
-            state.openIds = state.openIds.length > 0
-              ? []
-              : state.notes.map(n => n.id);
+        case 'togglePins':
+          // 预览/云端模式下切换小圆点显隐（供侧边栏 Ctrl/Cmd+. 调用）
+          if (state.mode === 'preview') {
+            state.pinsHidden = !state.pinsHidden;
             renderNotes();
-            notifySidepanel();
+            toast(state.pinsHidden ? t('toast.pinsHidden') : t('toast.pinsShown'));
           }
           sendResponse({ success: true });
           break;
@@ -859,6 +866,16 @@ function ensureOverlay() {
       setMode(ContexaShared.getNextEditableMode(state.mode));
     }
 
+    // Ctrl/Cmd + . : 预览/云端模式下切换小圆点显隐
+    if ((event.ctrlKey || event.metaKey) && event.key === '.') {
+      if (state.mode === 'preview') {
+        event.preventDefault();
+        state.pinsHidden = !state.pinsHidden;
+        renderNotes();
+        toast(state.pinsHidden ? t('toast.pinsHidden') : t('toast.pinsShown'));
+      }
+    }
+
     // Ctrl/Cmd + 0: close all open notes in shared mode
     onSharedShortcut(event);
   });
@@ -888,6 +905,12 @@ function applyMode() {
     state.editingId = null;
     state.readOnly = false;
     state.openIds = [];
+    state.pinsHidden = false;
+    // 清理 pinsHidden 时挂到页面 DOM 上的 hover 监听
+    if (domHoverCleanup.length) {
+      domHoverCleanup.forEach(fn => fn());
+      domHoverCleanup = [];
+    }
     return;
   }
 
@@ -899,6 +922,7 @@ function applyMode() {
   if (mode === 'annotation') {
     state.readOnly = false;
     state.openIds = [];
+    state.pinsHidden = false;
     els.captureLayer.style.display = 'block';
     els.captureLayer.style.pointerEvents = 'auto';
     addCursorStyle();
@@ -989,23 +1013,10 @@ function setMode(mode, readOnly) {
 }
 
 // ---- Ctrl/Cmd+0 shortcut ----
-// 云端模式：切换所有备注的展开状态（有打开的则全部关闭，无打开的则全部展开）
 // 非云端模式（标注/预览）：切换到云端模式
 function onSharedShortcut(event) {
   if (!isExtensionContextValid()) return;
   if (!(event.ctrlKey || event.metaKey) || event.key !== '0') return;
-
-  if (state.readOnly) {
-    // 云端模式：有打开的备注 → 关闭全部；无打开的备注 → 展开全部
-    if (state.notes.length === 0) return;
-    event.preventDefault();
-    state.openIds = state.openIds.length > 0
-      ? []
-      : state.notes.map(n => n.id);
-    renderNotes();
-    notifySidepanel();
-    return;
-  }
 
   // 非云端模式：读取 shareUrl 并切换到云端模式
   event.preventDefault();
@@ -1143,17 +1154,6 @@ function saveNoteFromPopover(noteId, popover, options = {}) {
   note.title = popover.querySelector(".note-input").value.trim() || t('note.untitled');
   note.text = popover.querySelector(".note-textarea").value.trim();
 
-  // If description is empty, delete the note instead of keeping it
-  if (!note.text) {
-    state.notes = state.notes.filter(item => item.id !== noteId);
-    state.selectedId = null;
-    state.editingId = null;
-    saveNotes();
-    if (!options.skipRender) renderNotes();
-    notifySidepanel();
-    return;
-  }
-
   if (state.editingId === noteId) state.editingId = null;
   state.selectedId = null;
   saveNotes();
@@ -1223,14 +1223,182 @@ function reorderNotes(orderedIds) {
   renderNotes();
 }
 
+// 云端模式构建只读备注 popover，并按 pin 位置智能摆放（点击打开与 hover 预览共用）
+function createReadonlyPopover(note, pin) {
+  const pop = document.createElement("article");
+  pop.className = "note-pop readonly";
+  pop.innerHTML = `
+    <h3></h3>
+    <p></p>
+  `;
+  pop.querySelector("h3").textContent = note.title || t('note.untitled');
+  pop.querySelector("p").textContent = note.text || "";
+
+  els.noteLayer.appendChild(pop);
+
+  const popW = pop.offsetWidth || 220;
+  const popH = pop.offsetHeight || 80;
+  const pinRect = pin.getBoundingClientRect();
+  const gap = 8;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  let left = pinRect.left - 8;
+  let top = pinRect.bottom + gap;
+
+  if (top + popH > vh - 4) {
+    top = pinRect.top - popH - gap;
+  }
+  if (top < 4) top = 4;
+
+  if (left + popW > vw - 4) {
+    left = vw - popW - 4;
+  }
+  if (left < 4) left = 4;
+
+  pop.style.left = `${left}px`;
+  pop.style.top = `${top}px`;
+  return pop;
+}
+
+function closeHoverPeek() {
+  if (!hoverPeek) return;
+  clearTimeout(hoverPeek.closeTimer);
+  hoverPeek.pop.remove();
+  hoverPeek = null;
+}
+
+function scheduleHoverPeekClose() {
+  if (!hoverPeek) return;
+  clearTimeout(hoverPeek.closeTimer);
+  // pin 与 popover 之间有间隙，稍等片刻再收起，鼠标移到 popover 上时不会闪没
+  hoverPeek.closeTimer = setTimeout(closeHoverPeek, 150);
+}
+
 // ---- Render pins (works in both annotation and preview modes) ----
 function renderNotes() {
   if (!isExtensionContextValid()) return;
   if (!els.noteLayer) return;
 
+  // pinsHidden + 云端模式且有 hover DOM 弹出的 pin+popover 时，跳过重建，
+  // 否则 innerHTML='' 会清掉它们（scheduleRender 已挡，这里挡直接调用）
+  if (state.pinsHidden && state.readOnly && domPeekActive) return;
+
+  // 重新渲染会清空 noteLayer，hover 预览的 popover 随之失效
+  closeHoverPeek();
+  // 清理上一次 pinsHidden 时挂到页面 DOM 上的 hover 监听
+  if (domHoverCleanup.length) {
+    domHoverCleanup.forEach(fn => fn());
+    domHoverCleanup = [];
+  }
   els.noteLayer.innerHTML = "";
+
+  // 小圆点隐藏模式：不渲染任何 pin/popover，直接同步计数给侧边栏
+  if (state.pinsHidden) {
+    let visible = 0;
+    const visibleNotes = [];
+    // 云端模式：DOM 元素 → 该元素上挂的备注列表（用于 hover DOM 触发）
+    const elementGroups = new Map();
+    for (let i = 0; i < state.notes.length; i++) {
+      const note = state.notes[i];
+      let element = null;
+      try { element = document.querySelector(note.selector); } catch (e) { continue; }
+      if (!element || !isElementVisible(element)) continue;
+      const rect = element.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) continue;
+      visible += 1;
+      const number = i + 1;
+      visibleNotes.push({ id: note.id, number, selector: note.selector, title: note.title || '', description: note.description || '' });
+      if (state.readOnly) {
+        if (!elementGroups.has(element)) elementGroups.set(element, []);
+        elementGroups.get(element).push({ note, number });
+      }
+    }
+    notifySidepanel({ total: state.notes.length, visible, visibleNotes });
+
+    // 云端模式隐藏圆点时：hover 备注对应的 DOM 元素 → 显示该 DOM 的 pin + popover
+    if (state.readOnly && elementGroups.size > 0) {
+      let closeTimer = 0;
+      let active = [];
+      function clearPeek() {
+        for (const a of active) { a.pop.remove(); a.pin.remove(); }
+        active = [];
+        domPeekActive = false;
+      }
+      function scheduleClose() {
+        clearTimeout(closeTimer);
+        closeTimer = setTimeout(clearPeek, 150);
+      }
+      for (const [element, notes] of elementGroups) {
+        const onEnter = () => {
+          if (!isExtensionContextValid()) return;
+          clearTimeout(closeTimer);
+          clearPeek();
+          domPeekActive = true;
+          const rect = element.getBoundingClientRect();
+          for (const { note, number } of notes) {
+            const pin = document.createElement('button');
+            pin.className = 'pin';
+            pin.textContent = number;
+            pin.style.left = `${clamp(rect.right - 12, 4, window.innerWidth - 32)}px`;
+            pin.style.top = `${clamp(rect.top - 12, 4, window.innerHeight - 32)}px`;
+            // 先挂载 pin，createReadonlyPopover 才能读到正确的 pinRect 来定位 popover
+            els.noteLayer.appendChild(pin);
+            const pop = createReadonlyPopover(note, pin);
+            popoverZ++;
+            pop.style.zIndex = popoverZ;
+            pin.style.zIndex = popoverZ;
+            pin.addEventListener('mouseenter', () => clearTimeout(closeTimer));
+            pin.addEventListener('mouseleave', scheduleClose);
+            pop.addEventListener('mouseenter', () => clearTimeout(closeTimer));
+            pop.addEventListener('mouseleave', scheduleClose);
+            active.push({ pop, pin });
+          }
+        };
+        const onLeave = (e) => {
+          // popover 覆盖 DOM 会触发伪 mouseleave，此时鼠标物理位置仍在 DOM 范围内，不收起
+          const rect = element.getBoundingClientRect();
+          if (e.clientX >= rect.left && e.clientX <= rect.right &&
+              e.clientY >= rect.top && e.clientY <= rect.bottom) {
+            return;
+          }
+          scheduleClose();
+        };
+        element.addEventListener('mouseenter', onEnter);
+        element.addEventListener('mouseleave', onLeave);
+        domHoverCleanup.push(() => {
+          element.removeEventListener('mouseenter', onEnter);
+          element.removeEventListener('mouseleave', onLeave);
+        });
+      }
+    }
+
+    return;
+  }
+
   let visible = 0;
   const visibleNotes = [];
+  // 云端模式所有已展开的 popover+pin，hover 时用于统一调透明度
+  const dimmable = [];
+  // hover 高亮：当前 popover/pin 抬到最顶，其他 popover 全透明（pin 始终保持可见）
+  let undimTimer = 0;
+  function raisePopover(pop, pin) {
+    popoverZ++;
+    pop.style.zIndex = popoverZ;
+    pin.style.zIndex = popoverZ;
+  }
+  function dimOthers(activePop) {
+    clearTimeout(undimTimer);
+    for (const d of dimmable) {
+      if (d.pop !== activePop) d.pop.style.opacity = '0';
+    }
+  }
+  function restorePops(delay) {
+    clearTimeout(undimTimer);
+    undimTimer = setTimeout(() => {
+      for (const d of dimmable) d.pop.style.opacity = '1';
+    }, delay);
+  }
 
   for (let i = 0; i < state.notes.length; i++) {
     const note = state.notes[i];
@@ -1265,7 +1433,6 @@ function renderNotes() {
     pin.classList.toggle("selected", isOpen);
     pin.setAttribute("aria-pressed", String(isOpen));
     pin.textContent = number;
-    pin.title = isOpen ? t('note.hide') : (note.title || t('note.show'));
 
     pin.style.left = `${clamp(rect.right - 12, 4, window.innerWidth - 32)}px`;
     pin.style.top = `${clamp(rect.top - 12, 4, window.innerHeight - 32)}px`;
@@ -1276,11 +1443,10 @@ function renderNotes() {
       event.preventDefault();
       event.stopPropagation();
 
-      if (state.readOnly) {
-        const idx = state.openIds.indexOf(note.id);
-        if (idx >= 0) state.openIds.splice(idx, 1);
-        else state.openIds.push(note.id);
-      } else {
+      // 云端模式：备注由 hover 展示，点击 pin 不再展开/收起
+      if (state.readOnly) return;
+
+      {
         const wasSelected = state.selectedId === note.id;
 
         if (state.editingId) saveActiveEditingNote();
@@ -1298,45 +1464,64 @@ function renderNotes() {
       notifySidepanel();
     });
 
+    // 云端模式：hover pin 或 popover 都触发高亮——抬到最顶，其他 popover 全透明（pin 不透明）；
+    // 未展开的备注 hover pin 时临时弹出预览，移开自动收起
+    if (state.readOnly) {
+      pin.addEventListener('mouseenter', () => {
+        if (!isExtensionContextValid()) return;
+        // 从自己的预览 popover 移回 pin：取消收起，保持高亮
+        if (hoverPeek && hoverPeek.pin === pin) {
+          clearTimeout(hoverPeek.closeTimer);
+          clearTimeout(undimTimer);
+          raisePopover(hoverPeek.pop, pin);
+          dimOthers(hoverPeek.pop);
+          return;
+        }
+        const entry = dimmable.find(d => d.pin === pin);
+        if (entry) {
+          raisePopover(entry.pop, pin);
+          dimOthers(entry.pop);
+          return;
+        }
+        closeHoverPeek();
+        const pop = createReadonlyPopover(note, pin);
+        raisePopover(pop, pin);
+        pop.addEventListener('mouseenter', () => {
+          if (hoverPeek && hoverPeek.pop === pop) clearTimeout(hoverPeek.closeTimer);
+          clearTimeout(undimTimer);
+        });
+        pop.addEventListener('mouseleave', () => {
+          scheduleHoverPeekClose();
+          restorePops(150);
+        });
+        hoverPeek = { pop, pin, closeTimer: 0 };
+        dimOthers(pop);
+      });
+      pin.addEventListener('mouseleave', () => {
+        scheduleHoverPeekClose();
+        restorePops(150);
+      });
+    }
+
     els.noteLayer.appendChild(pin);
 
     if (isOpen) {
       if (state.readOnly) {
-        const pop = document.createElement("article");
-        pop.className = "note-pop readonly";
-        // 静态结构用 innerHTML（无插值）；note 数据来自云端 JSON，
-        // 必须用 textContent 防止 XSS（如 title 含 <img onerror=...>）。
-        pop.innerHTML = `
-          <h3></h3>
-          <p></p>
-        `;
-        pop.querySelector("h3").textContent = note.title || t('note.untitled');
-        pop.querySelector("p").textContent = note.text || "";
+        const pop = createReadonlyPopover(note, pin);
 
-        els.noteLayer.appendChild(pop);
-
-        const popW = pop.offsetWidth || 220;
-        const popH = pop.offsetHeight || 80;
-        const pinRect = pin.getBoundingClientRect();
-        const gap = 8;
-        const vw = window.innerWidth;
-        const vh = window.innerHeight;
-
-        let left = pinRect.left - 8;
-        let top = pinRect.bottom + gap;
-
-        if (top + popH > vh - 4) {
-          top = pinRect.top - popH - gap;
-        }
-        if (top < 4) top = 4;
-
-        if (left + popW > vw - 4) {
-          left = vw - popW - 4;
-        }
-        if (left < 4) left = 4;
-
-        pop.style.left = `${left}px`;
-        pop.style.top = `${top}px`;
+        // 基础 z-index 按 openIds 顺序递增——后打开的在上面；
+        // hover 时再往上抬，确保鼠标指向的 popover 和对应 pin 永远可点。
+        const openIdx = state.openIds.indexOf(note.id);
+        pop.style.zIndex = 100 + Math.max(openIdx, 0);
+        pin.style.zIndex = 100 + Math.max(openIdx, 0);
+        dimmable.push({ pop, pin });
+        pop.addEventListener('mouseenter', () => {
+          raisePopover(pop, pin);
+          dimOthers(pop);
+        });
+        pop.addEventListener('mouseleave', () => {
+          restorePops(150);
+        });
       } else {
         const pop = document.createElement("article");
         pop.className = "note-pop editing";
@@ -1513,8 +1698,15 @@ function renderNotes() {
 function scheduleRender() {
   if (!isExtensionContextValid()) return;
   if (state.editingId) return;
+  // pinsHidden + 云端模式且有 hover DOM 弹出的 pin+popover 时，跳过重新渲染，
+  // 避免 innerHTML='' 清掉它们；移开后 clearPeek 会重置标志，下次正常渲染
+  if (state.pinsHidden && state.readOnly && domPeekActive) return;
   clearTimeout(renderTimer);
-  renderTimer = setTimeout(renderNotes, 80);
+  renderTimer = setTimeout(() => {
+    // 回调执行前再检查一次，防止 scheduleRender 放行后 domPeekActive 才变 true
+    if (state.pinsHidden && state.readOnly && domPeekActive) return;
+    renderNotes();
+  }, 80);
 }
 
 function drawTargetBox(element) {

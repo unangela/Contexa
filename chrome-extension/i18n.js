@@ -111,6 +111,8 @@
       'toast.importedPages': '已导入 {count} 个页面的数据',
       'toast.clearedAll': '已清空全部数据',
       'toast.noClearData': '没有可清空的数据',
+      'toast.pinsHidden': '小圆点已隐藏',
+      'toast.pinsShown': '小圆点已显示',
 
       // —— confirm ——
       'confirm.clearPage': '确定清空当前页面的全部备注吗？',
@@ -242,6 +244,8 @@
       'toast.importedPages': 'Imported {count} page(s)',
       'toast.clearedAll': 'All data cleared',
       'toast.noClearData': 'Nothing to clear',
+      'toast.pinsHidden': 'Pins hidden',
+      'toast.pinsShown': 'Pins shown',
 
       // —— confirm ——
       'confirm.clearPage': 'Clear all notes on this page?',

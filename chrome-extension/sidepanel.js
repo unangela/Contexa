@@ -164,10 +164,22 @@ function init() {
       e.preventDefault();
       cycleMode();
     }
-    // Ctrl/Cmd+0：云端模式 → 关闭已打开备注；非云端 → 进入云端模式
+    // Ctrl/Cmd+0：非云端 → 进入云端模式（云端模式下无响应）
     if ((e.metaKey || e.ctrlKey) && e.key === '0') {
       e.preventDefault();
       onCtrlZero();
+    }
+    // Ctrl/Cmd+.：预览/云端模式 → 切换小圆点显隐
+    if ((e.metaKey || e.ctrlKey) && e.key === '.') {
+      e.preventDefault();
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs[0]) return;
+        chrome.tabs.sendMessage(tabs[0].id, { type: 'togglePins' }, () => {
+          if (chrome.runtime.lastError) {
+            toast(t('toast.unsupportedOp'));
+          }
+        });
+      });
     }
   });
 
@@ -863,7 +875,7 @@ function cycleMode() {
   onModeSelect(ContexaShared.getNextEditableMode(currentState.mode));
 }
 
-// Ctrl/Cmd+0：云端模式 → 关闭已打开备注；非云端 → 进入云端模式
+// Ctrl/Cmd+0：非云端 → 进入云端模式
 function onCtrlZero() {
   if (!extensionSupported) {
     toast(t('toast.unsupported'));
@@ -871,19 +883,11 @@ function onCtrlZero() {
   }
   const isShared = currentState.mode === 'preview' && currentState.readOnly;
   if (isShared) {
-    // 云端模式：发消息给 content 切换所有备注展开状态
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs[0]) return;
-      chrome.tabs.sendMessage(tabs[0].id, { type: 'toggleAllNotes' }, () => {
-        if (chrome.runtime.lastError) {
-          toast(t('toast.unsupportedOp'));
-        }
-      });
-    });
-  } else {
-    // 非云端：进入云端模式（onModeSelect 会校验 shareUrl 并加载）
-    onModeSelect('shared');
+    // 云端模式下不再响应 Ctrl/Cmd+0
+    return;
   }
+  // 非云端：进入云端模式（onModeSelect 会校验 shareUrl 并加载）
+  onModeSelect('shared');
 }
 
 function saveShareUrl() {
